@@ -1,18 +1,3 @@
--- drop all tables first
-DROP TABLE IF EXISTS migration_history;
-DROP TABLE IF EXISTS system_setting;
-DROP TABLE IF EXISTS user;
-DROP TABLE IF EXISTS user_setting;
-DROP TABLE IF EXISTS memo;
-DROP TABLE IF EXISTS memo_organizer;
-DROP TABLE IF EXISTS memo_relation;
-DROP TABLE IF EXISTS resource;
-DROP TABLE IF EXISTS tag;
-DROP TABLE IF EXISTS activity;
-DROP TABLE IF EXISTS storage;
-DROP TABLE IF EXISTS idp;
-DROP TABLE IF EXISTS inbox;
-
 -- migration_history
 CREATE TABLE migration_history (
   version TEXT NOT NULL PRIMARY KEY,
@@ -54,6 +39,7 @@ CREATE TABLE user_setting (
 -- memo
 CREATE TABLE memo (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  resource_name TEXT NOT NULL UNIQUE,
   creator_id INTEGER NOT NULL,
   created_ts BIGINT NOT NULL DEFAULT (strftime('%s', 'now')),
   updated_ts BIGINT NOT NULL DEFAULT (strftime('%s', 'now')),
@@ -85,6 +71,7 @@ CREATE TABLE memo_relation (
 -- resource
 CREATE TABLE resource (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  resource_name TEXT NOT NULL UNIQUE,
   creator_id INTEGER NOT NULL,
   created_ts BIGINT NOT NULL DEFAULT (strftime('%s', 'now')),
   updated_ts BIGINT NOT NULL DEFAULT (strftime('%s', 'now')),
@@ -144,3 +131,16 @@ CREATE TABLE inbox (
   status TEXT NOT NULL,
   message TEXT NOT NULL DEFAULT '{}'
 );
+
+-- webhook
+CREATE TABLE webhook (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  created_ts BIGINT NOT NULL DEFAULT (strftime('%s', 'now')),
+  updated_ts BIGINT NOT NULL DEFAULT (strftime('%s', 'now')),
+  row_status TEXT NOT NULL CHECK (row_status IN ('NORMAL', 'ARCHIVED')) DEFAULT 'NORMAL',
+  creator_id INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  url TEXT NOT NULL
+);
+
+CREATE INDEX idx_webhook_creator_id ON webhook (creator_id);

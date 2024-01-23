@@ -1,11 +1,11 @@
-import { Button, Input } from "@mui/joy";
+import { Button, IconButton, Input } from "@mui/joy";
 import React, { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
-import { getTagSuggestionList } from "@/helpers/api";
-import { matcher } from "@/labs/marked/matcher";
-import Tag from "@/labs/marked/parser/Tag";
+import { tagServiceClient } from "@/grpcweb";
+import useCurrentUser from "@/hooks/useCurrentUser";
 import { useTagStore } from "@/store/module";
 import { useTranslate } from "@/utils/i18n";
+import { TAG_REG } from "@/utils/tag";
 import { generateDialog } from "./Dialog";
 import Icon from "./Icon";
 import OverflowTip from "./kit/OverflowTip";
@@ -13,7 +13,7 @@ import OverflowTip from "./kit/OverflowTip";
 type Props = DialogProps;
 
 const validateTagName = (tagName: string): boolean => {
-  const matchResult = matcher(`#${tagName}`, Tag.regexp);
+  const matchResult = `#${tagName}`.match(TAG_REG);
   if (!matchResult || matchResult[1] !== tagName) {
     return false;
   }
@@ -22,8 +22,9 @@ const validateTagName = (tagName: string): boolean => {
 
 const CreateTagDialog: React.FC<Props> = (props: Props) => {
   const { destroy } = props;
-  const tagStore = useTagStore();
   const t = useTranslate();
+  const currentUser = useCurrentUser();
+  const tagStore = useTagStore();
   const [tagName, setTagName] = useState<string>("");
   const [suggestTagNameList, setSuggestTagNameList] = useState<string[]>([]);
   const [showTagSuggestions, setShowTagSuggestions] = useState<boolean>(false);
@@ -31,9 +32,13 @@ const CreateTagDialog: React.FC<Props> = (props: Props) => {
   const shownSuggestTagNameList = suggestTagNameList.filter((tag) => !tagNameList.includes(tag));
 
   useEffect(() => {
-    getTagSuggestionList().then(({ data }) => {
-      setSuggestTagNameList(data.filter((tag) => validateTagName(tag)));
-    });
+    tagServiceClient
+      .getTagSuggestions({
+        user: currentUser.name,
+      })
+      .then(({ tags }) => {
+        setSuggestTagNameList(tags.filter((tag) => validateTagName(tag)));
+      });
   }, [tagNameList]);
 
   const handleTagNameInputKeyDown = (event: React.KeyboardEvent) => {
@@ -86,9 +91,9 @@ const CreateTagDialog: React.FC<Props> = (props: Props) => {
     <>
       <div className="dialog-header-container">
         <p className="title-text">{t("tag-list.create-tag")}</p>
-        <button className="btn close-btn" onClick={() => destroy()}>
-          <Icon.X />
-        </button>
+        <IconButton size="sm" onClick={() => destroy()}>
+          <Icon.X className="w-5 h-auto" />
+        </IconButton>
       </div>
       <div className="dialog-content-container !w-80">
         <Input

@@ -12,12 +12,6 @@ func (d *DB) CreateStorage(ctx context.Context, create *store.Storage) (*store.S
 	placeholder := []string{"?", "?", "?"}
 	args := []any{create.Name, create.Type, create.Config}
 
-	if create.ID != 0 {
-		fields = append(fields, "`id`")
-		placeholder = append(placeholder, "?")
-		args = append(args, create.ID)
-	}
-
 	stmt := "INSERT INTO `storage` (" + strings.Join(fields, ", ") + ") VALUES (" + strings.Join(placeholder, ", ") + ")"
 	result, err := d.db.ExecContext(ctx, stmt, args...)
 	if err != nil {
@@ -66,18 +60,6 @@ func (d *DB) ListStorages(ctx context.Context, find *store.FindStorage) ([]*stor
 	}
 
 	return list, nil
-}
-
-func (d *DB) GetStorage(ctx context.Context, find *store.FindStorage) (*store.Storage, error) {
-	list, err := d.ListStorages(ctx, find)
-	if err != nil {
-		return nil, err
-	}
-	if len(list) == 0 {
-		return nil, nil
-	}
-
-	return list[0], nil
 }
 
 func (d *DB) UpdateStorage(ctx context.Context, update *store.UpdateStorage) (*store.Storage, error) {

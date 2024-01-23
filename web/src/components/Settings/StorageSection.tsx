@@ -1,4 +1,4 @@
-import { Divider, IconButton, List, ListItem, Radio, RadioGroup } from "@mui/joy";
+import { Button, Divider, IconButton, List, ListItem, Radio, RadioGroup } from "@mui/joy";
 import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
 import { Link } from "react-router-dom";
@@ -60,9 +60,9 @@ const StorageSection = () => {
   };
 
   return (
-    <div className="section-container">
-      <div className="mt-4 mb-2 w-full flex flex-row justify-start items-center">
-        <span className="font-mono text-sm text-gray-400 mr-2">{t("setting.storage-section.current-storage")}</span>
+    <div className="w-full flex flex-col gap-2 pt-2 pb-4">
+      <div className="w-full flex flex-row justify-start items-center">
+        <span className="font-mono text-sm text-gray-400 mr-2 dark:text-gray-500">{t("setting.storage-section.current-storage")}</span>
       </div>
       <RadioGroup
         className="w-full"
@@ -82,15 +82,15 @@ const StorageSection = () => {
           <Radio key={storage.id} value={storage.id} label={storage.name} />
         ))}
       </RadioGroup>
-      <Divider className="!my-4" />
-      <div className="mb-2 w-full flex flex-row justify-start items-center gap-1">
-        <span className="font-mono text-sm text-gray-400">{t("setting.storage-section.storage-services-list")}</span>
-        <LearnMore url="https://usememos.com/docs/advanced-settings/cloudflare-r2" />
-        <button className="btn-normal px-2 py-0 ml-1" onClick={() => showCreateStorageServiceDialog(undefined, fetchStorageList)}>
-          {t("common.create")}
-        </button>
+      <Divider className="!my-2" />
+      <div className="mb-2 w-full flex flex-row justify-between items-center gap-1">
+        <div className="flex items-center gap-1">
+          <span className="font-mono text-sm text-gray-400">{t("setting.storage-section.storage-services")}</span>
+          <LearnMore url="https://usememos.com/docs/advanced-settings/cloudflare-r2" />
+        </div>
+        <Button onClick={() => showCreateStorageServiceDialog(undefined, fetchStorageList)}>{t("common.create")}</Button>
       </div>
-      <div className="mt-2 w-full flex flex-col">
+      <div className="w-full flex flex-col">
         {storageList.map((storage) => (
           <div
             key={storage.id}
@@ -122,17 +122,30 @@ const StorageSection = () => {
             </div>
           </div>
         ))}
+        {storageList.length === 0 && (
+          <div className="w-full text-sm dark:border-zinc-700 opacity-60 flex flex-row items-center justify-between">
+            <p className="">No storage service found.</p>
+          </div>
+        )}
       </div>
       <div className="w-full mt-4">
         <p className="text-sm">{t("common.learn-more")}:</p>
         <List component="ul" marker="disc" size="sm">
           <ListItem>
-            <Link className="text-sm text-blue-600 hover:underline" to="https://www.usememos.com/docs/advanced-settings/local-storage">
+            <Link
+              className="text-sm text-blue-600 hover:underline"
+              to="https://www.usememos.com/docs/advanced-settings/local-storage"
+              target="_blank"
+            >
               Docs - Local storage
             </Link>
           </ListItem>
           <ListItem>
-            <Link className="text-sm text-blue-600 hover:underline" to="https://www.usememos.com/blog/choosing-a-storage-for-your-resource">
+            <Link
+              className="text-sm text-blue-600 hover:underline"
+              to="https://www.usememos.com/blog/choosing-a-storage-for-your-resource"
+              target="_blank"
+            >
               Choosing a Storage for Your Resource: Database, S3 or Local Storage?
             </Link>
           </ListItem>

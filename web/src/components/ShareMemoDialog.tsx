@@ -1,14 +1,14 @@
-import { Button } from "@mui/joy";
+import { Button, IconButton } from "@mui/joy";
 import copy from "copy-to-clipboard";
 import React, { useEffect, useRef } from "react";
 import { toast } from "react-hot-toast";
 import { getDateTimeString } from "@/helpers/datetime";
 import useLoading from "@/hooks/useLoading";
 import toImage from "@/labs/html2image";
-import { useUserV1Store, extractUsernameFromName } from "@/store/v1";
+import { useUserStore, extractUsernameFromName } from "@/store/v1";
+import { Memo } from "@/types/proto/api/v2/memo_service";
 import { useTranslate } from "@/utils/i18n";
 import { generateDialog } from "./Dialog";
-import showEmbedMemoDialog from "./EmbedMemoDialog";
 import Icon from "./Icon";
 import MemoContent from "./MemoContent";
 import MemoResourceListView from "./MemoResourceListView";
@@ -20,21 +20,17 @@ interface Props extends DialogProps {
 }
 
 const ShareMemoDialog: React.FC<Props> = (props: Props) => {
-  const { memo: propsMemo, destroy } = props;
+  const { memo, destroy } = props;
   const t = useTranslate();
-  const userV1Store = useUserV1Store();
+  const userStore = useUserStore();
   const downloadingImageState = useLoading(false);
   const loadingState = useLoading();
   const memoElRef = useRef<HTMLDivElement>(null);
-  const memo = {
-    ...propsMemo,
-    displayTsStr: getDateTimeString(propsMemo.displayTs),
-  };
-  const user = userV1Store.getUserByUsername(memo.creatorUsername);
+  const user = userStore.getUserByUsername(extractUsernameFromName(memo.creator));
 
   useEffect(() => {
     (async () => {
-      await userV1Store.getOrFetchUserByUsername(memo.creatorUsername);
+      await userStore.getOrFetchUserByUsername(extractUsernameFromName(memo.creator));
       loadingState.setFinish();
     })();
   }, []);
@@ -53,11 +49,7 @@ const ShareMemoDialog: React.FC<Props> = (props: Props) => {
       pixelRatio: window.devicePixelRatio * 2,
     })
       .then((url) => {
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `memos-${getDateTimeString(Date.now())}.png`;
-        a.click();
-
+        downloadFileFromUrl(url, `memos-${getDateTimeString(Date.now())}.png`);
         downloadingImageState.setFinish();
       })
       .catch((err) => {
@@ -65,12 +57,20 @@ const ShareMemoDialog: React.FC<Props> = (props: Props) => {
       });
   };
 
-  const handleShowEmbedMemoDialog = () => {
-    showEmbedMemoDialog(memo.id);
+  const handleDownloadTextFileBtnClick = () => {
+    const blob = new Blob([memo.content], { type: "text/plain;charset=utf-8" });
+    downloadFileFromUrl(URL.createObjectURL(blob), `memos-${getDateTimeString(Date.now())}.md`);
+  };
+
+  const downloadFileFromUrl = (url: string, filename: string) => {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
   };
 
   const handleCopyLinkBtnClick = () => {
-    copy(`${window.location.origin}/m/${memo.id}`);
+    copy(`${window.location.origin}/m/${memo.name}`);
     toast.success(t("message.succeed-copy-link"));
   };
 
@@ -82,9 +82,9 @@ const ShareMemoDialog: React.FC<Props> = (props: Props) => {
     <>
       <div className="dialog-header-container py-3 px-4 !mb-0 rounded-t-lg">
         <p className="">{t("common.share")} Memo</p>
-        <button className="btn close-btn" onClick={handleCloseBtnClick}>
-          <Icon.X className="icon-img" />
-        </button>
+        <IconButton size="sm" onClick={handleCloseBtnClick}>
+          <Icon.X className="w-5 h-auto" />
+        </IconButton>
       </div>
       <div className="dialog-content-container w-full flex flex-col justify-start items-start relative">
         <div className="px-4 pb-3 w-full flex flex-row justify-start items-center space-x-2">
@@ -96,9 +96,9 @@ const ShareMemoDialog: React.FC<Props> = (props: Props) => {
             )}
             {t("common.image")}
           </Button>
-          <Button color="neutral" variant="outlined" onClick={handleShowEmbedMemoDialog}>
-            <Icon.Code className="w-4 h-auto mr-1" />
-            {t("memo.embed")}
+          <Button color="neutral" variant="outlined" onClick={handleDownloadTextFileBtnClick}>
+            <Icon.File className="w-4 h-auto mr-1" />
+            {t("common.file")}
           </Button>
           <Button color="neutral" variant="outlined" onClick={handleCopyLinkBtnClick}>
             <Icon.Link className="w-4 h-auto mr-1" />
@@ -110,17 +110,17 @@ const ShareMemoDialog: React.FC<Props> = (props: Props) => {
             className="w-full h-auto select-none relative flex flex-col justify-start items-start bg-white dark:bg-zinc-800"
             ref={memoElRef}
           >
-            <span className="w-full px-6 pt-5 pb-2 text-sm text-gray-500">{memo.displayTsStr}</span>
+            <span className="w-full px-6 pt-5 pb-2 text-sm text-gray-500">{getDateTimeString(memo.displayTime)}</span>
             <div className="w-full px-6 text-base pb-4">
-              <MemoContent content={memo.content} />
-              <MemoResourceListView resourceList={memo.resourceList} />
+              <MemoContent memoId={memo.id} nodes={memo.nodes} readonly={true} disableFilter />
+              <MemoResourceListView resources={memo.resources} />
             </div>
-            <div className="flex flex-row justify-between items-center w-full bg-gray-100 dark:bg-zinc-700 py-4 px-6">
+            <div className="flex flex-row justify-between items-center w-full bg-gray-100 dark:bg-zinc-900 py-4 px-6">
               <div className="flex flex-row justify-start items-center">
                 <UserAvatar className="mr-2" avatarUrl={user.avatarUrl} />
                 <div className="w-auto grow truncate flex mr-2 flex-col justify-center items-start">
                   <span className="w-full text truncate font-medium text-gray-600 dark:text-gray-300">
-                    {user.nickname || extractUsernameFromName(user.name)}
+                    {user.nickname || user.username}
                   </span>
                 </div>
               </div>

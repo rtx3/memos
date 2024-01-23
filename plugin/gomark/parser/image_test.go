@@ -5,17 +5,19 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/usememos/memos/plugin/gomark/ast"
 	"github.com/usememos/memos/plugin/gomark/parser/tokenizer"
+	"github.com/usememos/memos/plugin/gomark/restore"
 )
 
 func TestImageParser(t *testing.T) {
 	tests := []struct {
 		text  string
-		image *ImageParser
+		image ast.Node
 	}{
 		{
 			text: "![](https://example.com)",
-			image: &ImageParser{
+			image: &ast.Image{
 				AltText: "",
 				URL:     "https://example.com",
 			},
@@ -30,7 +32,7 @@ func TestImageParser(t *testing.T) {
 		},
 		{
 			text: "![al te](https://example.com)",
-			image: &ImageParser{
+			image: &ast.Image{
 				AltText: "al te",
 				URL:     "https://example.com",
 			},
@@ -38,6 +40,7 @@ func TestImageParser(t *testing.T) {
 	}
 	for _, test := range tests {
 		tokens := tokenizer.Tokenize(test.text)
-		require.Equal(t, test.image, NewImageParser().Match(tokens))
+		node, _ := NewImageParser().Parse(tokens)
+		require.Equal(t, restore.Restore([]ast.Node{test.image}), restore.Restore([]ast.Node{node}))
 	}
 }

@@ -2,6 +2,9 @@ package store
 
 import (
 	"context"
+	"errors"
+
+	"github.com/usememos/memos/internal/util"
 )
 
 // Visibility is the type of a visibility.
@@ -29,7 +32,8 @@ func (v Visibility) String() string {
 }
 
 type Memo struct {
-	ID int32
+	ID           int32
+	ResourceName string
 
 	// Standard fields
 	RowStatus RowStatus
@@ -42,29 +46,27 @@ type Memo struct {
 	Visibility Visibility
 
 	// Composed fields
-	// For those comment memos, the parent ID is the memo ID of the memo being commented.
-	// If the parent ID is nil, then this memo is not a comment.
-	ParentID       *int32
-	Pinned         bool
-	ResourceIDList []int32
-	RelationList   []*MemoRelation
+	Pinned   bool
+	ParentID *int32
 }
 
 type FindMemo struct {
-	ID *int32
+	ID           *int32
+	ResourceName *string
 
 	// Standard fields
 	RowStatus       *RowStatus
 	CreatorID       *int32
 	CreatedTsAfter  *int64
 	CreatedTsBefore *int64
+	UpdatedTsAfter  *int64
+	UpdatedTsBefore *int64
 
 	// Domain specific fields
-	ContentSearch  []string
-	VisibilityList []Visibility
-	Pinned         *bool
-	HasParent      *bool
-	ExcludeContent bool
+	ContentSearch   []string
+	VisibilityList  []Visibility
+	ExcludeContent  bool
+	ExcludeComments bool
 
 	// Pagination
 	Limit            *int
@@ -74,12 +76,13 @@ type FindMemo struct {
 }
 
 type UpdateMemo struct {
-	ID         int32
-	CreatedTs  *int64
-	UpdatedTs  *int64
-	RowStatus  *RowStatus
-	Content    *string
-	Visibility *Visibility
+	ID           int32
+	ResourceName *string
+	CreatedTs    *int64
+	UpdatedTs    *int64
+	RowStatus    *RowStatus
+	Content      *string
+	Visibility   *Visibility
 }
 
 type DeleteMemo struct {
@@ -87,6 +90,9 @@ type DeleteMemo struct {
 }
 
 func (s *Store) CreateMemo(ctx context.Context, create *Memo) (*Memo, error) {
+	if !util.ResourceNameMatcher.MatchString(create.ResourceName) {
+		return nil, errors.New("resource name is invalid")
+	}
 	return s.driver.CreateMemo(ctx, create)
 }
 
@@ -108,13 +114,12 @@ func (s *Store) GetMemo(ctx context.Context, find *FindMemo) (*Memo, error) {
 }
 
 func (s *Store) UpdateMemo(ctx context.Context, update *UpdateMemo) error {
+	if update.ResourceName != nil && !util.ResourceNameMatcher.MatchString(*update.ResourceName) {
+		return errors.New("resource name is invalid")
+	}
 	return s.driver.UpdateMemo(ctx, update)
 }
 
 func (s *Store) DeleteMemo(ctx context.Context, delete *DeleteMemo) error {
 	return s.driver.DeleteMemo(ctx, delete)
-}
-
-func (s *Store) FindMemosVisibilityList(ctx context.Context, memoIDs []int32) ([]Visibility, error) {
-	return s.driver.FindMemosVisibilityList(ctx, memoIDs)
 }

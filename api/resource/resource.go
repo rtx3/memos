@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
@@ -44,26 +43,22 @@ func NewService(profile *profile.Profile, store *store.Store) *Service {
 }
 
 func (s *Service) RegisterResourcePublicRoutes(g *echo.Group) {
-	g.GET("/r/:resourceId", s.streamResource)
-	g.GET("/r/:resourceId/*", s.streamResource)
+	g.GET("/r/:resourceName", s.streamResource)
+	g.GET("/r/:resourceName/*", s.streamResource)
 }
 
 func (s *Service) streamResource(c echo.Context) error {
 	ctx := c.Request().Context()
-	resourceID, err := util.ConvertStringToInt32(c.Param("resourceId"))
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("resourceId"))).SetInternal(err)
-	}
-
+	resourceName := c.Param("resourceName")
 	resource, err := s.Store.GetResource(ctx, &store.FindResource{
-		ID:      &resourceID,
-		GetBlob: true,
+		ResourceName: &resourceName,
+		GetBlob:      true,
 	})
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("Failed to find resource by ID: %v", resourceID)).SetInternal(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("Failed to find resource by id: %s", resourceName)).SetInternal(err)
 	}
 	if resource == nil {
-		return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("Resource not found: %d", resourceID))
+		return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("Resource not found: %s", resourceName))
 	}
 	// Check the related memo visibility.
 	if resource.MemoID != nil {
@@ -83,7 +78,11 @@ func (s *Service) streamResource(c echo.Context) error {
 
 	blob := resource.Blob
 	if resource.InternalPath != "" {
-		resourcePath := resource.InternalPath
+		resourcePath := filepath.FromSlash(resource.InternalPath)
+		if !filepath.IsAbs(resourcePath) {
+			resourcePath = filepath.Join(s.Profile.Data, resourcePath)
+		}
+
 		src, err := os.Open(resourcePath)
 		if err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("Failed to open the local resource: %s", resourcePath)).SetInternal(err)
@@ -142,7 +141,7 @@ func getOrGenerateThumbnailImage(srcBlob []byte, dstPath string) ([]byte, error)
 		}
 		thumbnailImage := imaging.Resize(src, 512, 0, imaging.Lanczos)
 
-		dstDir := path.Dir(dstPath)
+		dstDir := filepath.Dir(dstPath)
 		if err := os.MkdirAll(dstDir, os.ModePerm); err != nil {
 			return nil, errors.Wrap(err, "failed to create thumbnail dir")
 		}

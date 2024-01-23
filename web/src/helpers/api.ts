@@ -18,7 +18,7 @@ export function vacuumDatabase() {
 }
 
 export function signin(username: string, password: string, remember: boolean) {
-  return axios.post("/api/v1/auth/signin", {
+  return axios.post<User>("/api/v1/auth/signin", {
     username,
     password,
     remember,
@@ -26,7 +26,7 @@ export function signin(username: string, password: string, remember: boolean) {
 }
 
 export function signinWithSSO(identityProviderId: IdentityProviderId, code: string, redirectUri: string) {
-  return axios.post("/api/v1/auth/signin/sso", {
+  return axios.post<User>("/api/v1/auth/signin/sso", {
     identityProviderId,
     code,
     redirectUri,
@@ -34,7 +34,7 @@ export function signinWithSSO(identityProviderId: IdentityProviderId, code: stri
 }
 
 export function signup(username: string, password: string) {
-  return axios.post("/api/v1/auth/signup", {
+  return axios.post<User>("/api/v1/auth/signup", {
     username,
     password,
   });
@@ -44,108 +44,8 @@ export function signout() {
   return axios.post("/api/v1/auth/signout");
 }
 
-export function createUser(userCreate: UserCreate) {
-  return axios.post<User>("/api/v1/user", userCreate);
-}
-
-export function getMyselfUser() {
-  return axios.get<User>("/api/v1/user/me");
-}
-
-export function getUserList() {
-  return axios.get<User[]>("/api/v1/user");
-}
-
-export function upsertUserSetting(upsert: UserSettingUpsert) {
-  return axios.post<UserSetting>(`/api/v1/user/setting`, upsert);
-}
-
-export function patchUser(userPatch: UserPatch) {
-  return axios.patch<User>(`/api/v1/user/${userPatch.id}`, userPatch);
-}
-
-export function deleteUser(userDelete: UserDelete) {
-  return axios.delete(`/api/v1/user/${userDelete.id}`);
-}
-
-export function getAllMemos(memoFind?: MemoFind) {
-  const queryList = [];
-  if (memoFind?.offset) {
-    queryList.push(`offset=${memoFind.offset}`);
-  }
-  if (memoFind?.limit) {
-    queryList.push(`limit=${memoFind.limit}`);
-  }
-
-  if (memoFind?.creatorUsername) {
-    queryList.push(`creatorUsername=${memoFind.creatorUsername}`);
-  }
-
-  return axios.get<Memo[]>(`/api/v1/memo/all?${queryList.join("&")}`);
-}
-
-export function getMemoList(memoFind?: MemoFind) {
-  const queryList = [];
-  if (memoFind?.creatorUsername) {
-    queryList.push(`creatorUsername=${memoFind.creatorUsername}`);
-  }
-  if (memoFind?.rowStatus) {
-    queryList.push(`rowStatus=${memoFind.rowStatus}`);
-  }
-  if (memoFind?.pinned) {
-    queryList.push(`pinned=${memoFind.pinned}`);
-  }
-  if (memoFind?.offset) {
-    queryList.push(`offset=${memoFind.offset}`);
-  }
-  if (memoFind?.limit) {
-    queryList.push(`limit=${memoFind.limit}`);
-  }
-  return axios.get<Memo[]>(`/api/v1/memo?${queryList.join("&")}`);
-}
-
-export function getMemoStats(username: string) {
-  return axios.get<number[]>(`/api/v1/memo/stats?creatorUsername=${username}`);
-}
-
-export function getMemoById(id: MemoId) {
-  return axios.get<Memo>(`/api/v1/memo/${id}`);
-}
-
-export function createMemo(memoCreate: MemoCreate) {
-  return axios.post<Memo>("/api/v1/memo", memoCreate);
-}
-
-export function patchMemo(memoPatch: MemoPatch) {
-  return axios.patch<Memo>(`/api/v1/memo/${memoPatch.id}`, memoPatch);
-}
-
-export function pinMemo(memoId: MemoId) {
-  return axios.post(`/api/v1/memo/${memoId}/organizer`, {
-    pinned: true,
-  });
-}
-
-export function unpinMemo(memoId: MemoId) {
-  return axios.post(`/api/v1/memo/${memoId}/organizer`, {
-    pinned: false,
-  });
-}
-
-export function deleteMemo(memoId: MemoId) {
-  return axios.delete(`/api/v1/memo/${memoId}`);
-}
-
-export function createResource(resourceCreate: ResourceCreate) {
-  return axios.post<Resource>("/api/v1/resource", resourceCreate);
-}
-
 export function createResourceWithBlob(formData: FormData) {
   return axios.post<Resource>("/api/v1/resource/blob", formData);
-}
-
-export function getTagSuggestionList() {
-  return axios.get<string[]>(`/api/v1/tag/suggestion`);
 }
 
 export function getStorageList() {

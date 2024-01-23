@@ -1,87 +1,51 @@
+import { Dropdown, Menu, MenuButton, MenuItem } from "@mui/joy";
+import classNames from "classnames";
+import * as api from "@/helpers/api";
 import useCurrentUser from "@/hooks/useCurrentUser";
-import useNavigateTo from "@/hooks/useNavigateTo";
-import { useGlobalStore, useUserStore } from "@/store/module";
-import { extractUsernameFromName } from "@/store/v1";
-import { User_Role } from "@/types/proto/api/v2/user_service";
+import { useGlobalStore } from "@/store/module";
 import { useTranslate } from "@/utils/i18n";
-import showAboutSiteDialog from "./AboutSiteDialog";
 import Icon from "./Icon";
 import UserAvatar from "./UserAvatar";
-import Dropdown from "./kit/Dropdown";
 
-const UserBanner = () => {
+interface Props {
+  collapsed?: boolean;
+}
+
+const UserBanner = (props: Props) => {
+  const { collapsed } = props;
   const t = useTranslate();
-  const navigateTo = useNavigateTo();
   const globalStore = useGlobalStore();
-  const userStore = useUserStore();
   const { systemStatus } = globalStore.state;
   const user = useCurrentUser();
-  const title = user ? user.nickname : systemStatus.customizedProfile.name || "memos";
+  const title = user ? user.nickname || user.username : systemStatus.customizedProfile.name || "memos";
+  const avatarUrl = user ? user.avatarUrl : systemStatus.customizedProfile.logoUrl;
 
-  const handleMyAccountClick = () => {
-    navigateTo(`/u/${encodeURIComponent(extractUsernameFromName(user.name))}`);
-  };
-
-  const handleAboutBtnClick = () => {
-    showAboutSiteDialog();
-  };
-
-  const handleSignOutBtnClick = async () => {
-    await userStore.doSignOut();
+  const handleSignOut = async () => {
+    await api.signout();
     window.location.href = "/auth";
   };
 
   return (
-    <div className="flex flex-row justify-between items-center relative w-full h-auto px-2 flex-nowrap shrink-0">
-      <Dropdown
-        className="w-auto"
-        trigger={
-          <div className="px-4 py-2 max-w-full flex flex-row justify-start items-center cursor-pointer rounded-2xl hover:shadow hover:bg-white dark:hover:bg-zinc-700">
-            <UserAvatar className="shadow" avatarUrl={user?.avatarUrl} />
-            <span className="px-1 text-lg font-medium text-slate-800 dark:text-gray-200 shrink truncate">{title}</span>
-            {user?.role === User_Role.HOST ? (
-              <span className="text-xs px-1 bg-blue-600 dark:bg-blue-800 rounded text-white dark:text-gray-200 shadow">MOD</span>
-            ) : null}
+    <div className="relative w-auto h-auto px-1 shrink-0">
+      <Dropdown>
+        <MenuButton slots={{ root: "div" }}>
+          <div
+            className={classNames(
+              "py-1 my-1 w-auto flex flex-row justify-start items-center cursor-pointer rounded-2xl border border-transparent text-gray-800 dark:text-gray-300",
+              collapsed ? "px-1" : "px-3"
+            )}
+          >
+            <UserAvatar className="shadow shrink-0" avatarUrl={avatarUrl} />
+            {!collapsed && <span className="ml-2 text-lg font-medium text-slate-800 dark:text-gray-200 shrink truncate">{title}</span>}
           </div>
-        }
-        actionsClassName="min-w-[128px] max-w-full"
-        positionClassName="top-full mt-2"
-        actions={
-          <>
-            {user != undefined && (
-              <>
-                <button
-                  className="w-full px-3 truncate text-left leading-10 cursor-pointer rounded flex flex-row justify-start items-center dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800"
-                  onClick={handleMyAccountClick}
-                >
-                  <Icon.User className="w-5 h-auto mr-2 opacity-80" /> {t("common.profile")}
-                </button>
-                <a
-                  className="w-full px-3 truncate text-left leading-10 cursor-pointer rounded flex flex-row justify-start items-center dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800"
-                  href={`/u/${user?.id}/rss.xml`}
-                  target="_blank"
-                >
-                  <Icon.Rss className="w-5 h-auto mr-2 opacity-80" /> RSS
-                </a>
-              </>
-            )}
-            <button
-              className="w-full px-3 truncate text-left leading-10 cursor-pointer rounded flex flex-row justify-start items-center dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800"
-              onClick={handleAboutBtnClick}
-            >
-              <Icon.Info className="w-5 h-auto mr-2 opacity-80" /> {t("common.about")}
-            </button>
-            {user != undefined && (
-              <button
-                className="w-full px-3 truncate text-left leading-10 cursor-pointer rounded flex flex-row justify-start items-center dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800"
-                onClick={handleSignOutBtnClick}
-              >
-                <Icon.LogOut className="w-5 h-auto mr-2 opacity-80" /> {t("common.sign-out")}
-              </button>
-            )}
-          </>
-        }
-      />
+        </MenuButton>
+        <Menu placement="bottom-start">
+          <MenuItem onClick={handleSignOut}>
+            <Icon.LogOut className="w-5 h-auto opacity-60 shrink-0" />
+            <span className="truncate">{t("common.sign-out")}</span>
+          </MenuItem>
+        </Menu>
+      </Dropdown>
     </div>
   );
 };

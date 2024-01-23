@@ -10,7 +10,7 @@
     "memo": "MEMO"
   },
   "auth": {
-    "create-your-account": "建立您的賬戶",
+    "create-your-account": "建立您的帳號",
     "host-tip": "您註冊為此站台之管理員。",
     "new-password": "新密碼",
     "repeat-new-password": "再次輸入新密碼",
@@ -38,6 +38,7 @@
     "email": "信箱",
     "expand": "展開",
     "explore": "探索",
+    "file": "檔案",
     "filter": "過濾器",
     "filter-period": "{{from}} 至 {{to}}",
     "fold": "折疊",
@@ -57,12 +58,13 @@
     "pin": "釘選",
     "preview": "預覽",
     "profile": "個人專頁",
-    "remember-me": "記住賬戶",
+    "remember-me": "記住我",
     "rename": "更名",
     "reset": "重設",
     "resources": "資源庫",
     "restore": "還原",
     "save": "儲存",
+    "search": "搜尋",
     "select": "選擇",
     "settings": "設定",
     "share": "分享",
@@ -76,15 +78,11 @@
     "unpin": "解除釘選",
     "update": "更新",
     "upload": "上傳",
-    "username": "賬戶",
+    "username": "帳號",
     "vacuum": "清理",
     "version": "版本",
     "visibility": "可見度",
     "yourself": "你自己"
-  },
-  "daily-review": {
-    "no-memos": "可惜可惜，是日空空如也。",
-    "title": "每日回顧"
   },
   "days": {
     "fri": "五",
@@ -237,7 +235,7 @@
       "openapi-sample-post": "哈囉 來自 {{url}} 的 #memos",
       "openapi-title": "OpenAPI",
       "reset-api": "重設 API",
-      "title": "賬戶資訊",
+      "title": "帳號資訊",
       "update-information": "更新個人資訊",
       "username-note": "為登入用途"
     },
@@ -255,7 +253,7 @@
       "delete-member": "刪除使用者",
       "delete-warning": "A您確定要刪除 {{username}}?\n\n此操作無法逆轉"
     },
-    "my-account": "我的賬戶",
+    "my-account": "我的帳號",
     "preference": "偏好設定",
     "preference-section": {
       "auto-collapse": "自動摺疊",
@@ -316,7 +314,7 @@
       "s3-compatible-url": "S3 相容網址",
       "secretkey": "金鑰",
       "secretkey-placeholder": "金鑰 / 存取金鑰",
-      "storage-services-list": "儲存服務列表",
+      "storage-services": "儲存服務列表",
       "type-database": "資料庫",
       "type-local": "本機",
       "update-a-service": "更新服務",
@@ -336,8 +334,6 @@
       "additional-style": "自訂樣式",
       "additional-style-placeholder": "自訂 CSS 代碼",
       "allow-user-signup": "允許使用者註冊",
-      "auto-backup-interval": "自動備份間隔(單位：秒)",
-      "auto-backup-interval-hint": "設定為 0 則禁止自動備份，需重新啟動後生效。",
       "customize-server": {
         "appearance": "伺服器外觀",
         "default": "預設為 memos",
@@ -359,7 +355,8 @@
       "server-name": "伺服器名稱",
       "telegram-bot-token": "Telegram 機器人權杖",
       "telegram-bot-token-description": "Telegram 機器人權杖或 API Proxy，如 `http.../bot<token>`",
-      "telegram-bot-token-placeholder": "您的 Telegram 機器人權杖"
+      "telegram-bot-token-placeholder": "您的 Telegram 機器人權杖",
+      "vacuum-hint": "清理未使用的資料。"
     }
   },
   "tag-list": {
@@ -372,5 +369,8 @@
     "tag-name": "標籤名稱",
     "tag-suggestions": "標籤建議",
     "tip-text": "輸入 `#tag` 以新增標籤"
+  },
+  "timeline": {
+    "title": "時間軸"
   }
 }

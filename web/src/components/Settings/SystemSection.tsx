@@ -9,9 +9,7 @@ import { useTranslate } from "@/utils/i18n";
 import { showCommonDialog } from "../Dialog/CommonDialog";
 import showDisablePasswordLoginDialog from "../DisablePasswordLoginDialog";
 import Icon from "../Icon";
-import LearnMore from "../LearnMore";
 import showUpdateCustomizedProfileDialog from "../UpdateCustomizedProfileDialog";
-import "@/less/settings/system-section.less";
 
 interface State {
   dbSize: number;
@@ -21,7 +19,6 @@ interface State {
   additionalStyle: string;
   additionalScript: string;
   maxUploadSizeMiB: number;
-  autoBackupInterval: number;
   memoDisplayWithUpdatedTs: boolean;
 }
 
@@ -37,10 +34,10 @@ const SystemSection = () => {
     additionalScript: systemStatus.additionalScript,
     disablePublicMemos: systemStatus.disablePublicMemos,
     maxUploadSizeMiB: systemStatus.maxUploadSizeMiB,
-    autoBackupInterval: systemStatus.autoBackupInterval,
     memoDisplayWithUpdatedTs: systemStatus.memoDisplayWithUpdatedTs,
   });
   const [telegramBotToken, setTelegramBotToken] = useState<string>("");
+  const [instanceUrl, setInstanceUrl] = useState<string>("");
 
   useEffect(() => {
     globalStore.fetchSystemStatus();
@@ -51,6 +48,10 @@ const SystemSection = () => {
       const telegramBotSetting = systemSettings.find((setting) => setting.name === "telegram-bot-token");
       if (telegramBotSetting) {
         setTelegramBotToken(telegramBotSetting.value);
+      }
+      const instanceUrlSetting = systemSettings.find((setting) => setting.name === "instance-url");
+      if (instanceUrlSetting) {
+        setInstanceUrl(instanceUrlSetting.value);
       }
     });
   }, []);
@@ -65,7 +66,6 @@ const SystemSection = () => {
       additionalScript: systemStatus.additionalScript,
       disablePublicMemos: systemStatus.disablePublicMemos,
       maxUploadSizeMiB: systemStatus.maxUploadSizeMiB,
-      autoBackupInterval: systemStatus.autoBackupInterval,
       memoDisplayWithUpdatedTs: systemStatus.memoDisplayWithUpdatedTs,
     });
   }, [systemStatus]);
@@ -116,6 +116,24 @@ const SystemSection = () => {
       return;
     }
     toast.success(t("message.succeed-vacuum-database"));
+  };
+
+  const handleInstanceUrlChanged = (value: string) => {
+    setInstanceUrl(value);
+  };
+
+  const handleSaveInstanceUrl = async () => {
+    try {
+      await api.upsertSystemSetting({
+        name: "instance-url",
+        value: instanceUrl,
+      });
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.response.data.message);
+      return;
+    }
+    toast.success("Instance URL updated");
   };
 
   const handleTelegramBotTokenChanged = (value: string) => {
@@ -224,63 +242,44 @@ const SystemSection = () => {
     event.target.select();
   };
 
-  const handleAutoBackupIntervalChanged = async (event: React.FocusEvent<HTMLInputElement>) => {
-    // fixes cursor skipping position on mobile
-    event.target.selectionEnd = event.target.value.length;
-
-    let num = parseInt(event.target.value);
-    if (Number.isNaN(num)) {
-      num = 0;
-    }
-    setState({
-      ...state,
-      autoBackupInterval: num,
-    });
-    event.target.value = num.toString();
-    globalStore.setSystemStatus({ autoBackupInterval: num });
-    await api.upsertSystemSetting({
-      name: "auto-backup-interval",
-      value: JSON.stringify(num),
-    });
-  };
-
-  const handleAutoBackupIntervalFocus = (event: React.FocusEvent<HTMLInputElement>) => {
-    event.target.select();
-  };
-
   return (
-    <div className="section-container system-section-container">
-      <p className="title-text">{t("common.basic")}</p>
-      <div className="form-label">
+    <div className="w-full flex flex-col gap-2 pt-2 pb-4">
+      <p className="font-medium text-gray-700 dark:text-gray-500">{t("common.basic")}</p>
+      <div className="w-full flex flex-row justify-between items-center">
         <div className="normal-text">
           {t("setting.system-section.server-name")}: <span className="font-mono font-bold">{systemStatus.customizedProfile.name}</span>
         </div>
         <Button onClick={handleUpdateCustomizedProfileButtonClick}>{t("common.edit")}</Button>
       </div>
-      <div className="form-label">
-        <span className="text-sm">
-          {t("setting.system-section.database-file-size")}: <span className="font-mono font-bold">{formatBytes(state.dbSize)}</span>
-        </span>
+      <div className="w-full flex flex-row justify-between items-center">
+        <div className="flex flex-row items-center">
+          <span className="text-sm">
+            {t("setting.system-section.database-file-size")}: <span className="font-mono font-bold">{formatBytes(state.dbSize)}</span>
+          </span>
+          <Tooltip title={t("setting.system-section.vacuum-hint")} placement="top">
+            <Icon.HelpCircle className="w-4 h-auto" />
+          </Tooltip>
+        </div>
         <Button onClick={handleVacuumBtnClick}>{t("common.vacuum")}</Button>
       </div>
-      <p className="title-text">{t("common.settings")}</p>
-      <div className="form-label">
+      <p className="font-medium text-gray-700 dark:text-gray-500">{t("common.settings")}</p>
+      <div className="w-full flex flex-row justify-between items-center">
         <span className="normal-text">{t("setting.system-section.allow-user-signup")}</span>
         <Switch checked={state.allowSignUp} onChange={(event) => handleAllowSignUpChanged(event.target.checked)} />
       </div>
-      <div className="form-label">
+      <div className="w-full flex flex-row justify-between items-center">
         <span className="normal-text">{t("setting.system-section.disable-password-login")}</span>
         <Switch checked={state.disablePasswordLogin} onChange={(event) => handleDisablePasswordLoginChanged(event.target.checked)} />
       </div>
-      <div className="form-label">
+      <div className="w-full flex flex-row justify-between items-center">
         <span className="normal-text">{t("setting.system-section.disable-public-memos")}</span>
         <Switch checked={state.disablePublicMemos} onChange={(event) => handleDisablePublicMemosChanged(event.target.checked)} />
       </div>
-      <div className="form-label">
+      <div className="w-full flex flex-row justify-between items-center">
         <span className="normal-text">{t("setting.system-section.display-with-updated-time")}</span>
         <Switch checked={state.memoDisplayWithUpdatedTs} onChange={(event) => handleMemoDisplayWithUpdatedTs(event.target.checked)} />
       </div>
-      <div className="form-label">
+      <div className="w-full flex flex-row justify-between items-center">
         <div className="flex flex-row items-center">
           <span className="text-sm mr-1">{t("setting.system-section.max-upload-size")}</span>
           <Tooltip title={t("setting.system-section.max-upload-size-hint")} placement="top">
@@ -297,35 +296,47 @@ const SystemSection = () => {
           onChange={handleMaxUploadSizeChanged}
         />
       </div>
-      <div className="form-label">
+      <Divider className="!mt-3 !my-4" />
+      <div className="w-full flex flex-row justify-between items-center">
         <div className="flex flex-row items-center">
-          <span className="text-sm mr-1">{t("setting.system-section.auto-backup-interval")}</span>
-          <Tooltip title={t("setting.system-section.auto-backup-interval-hint")} placement="top">
-            <Icon.HelpCircle className="w-4 h-auto" />
-          </Tooltip>
+          <div className="w-auto flex items-center">
+            <span className="text-sm mr-1">Instance URL</span>
+          </div>
         </div>
-        <Input
-          className="w-16"
-          sx={{
-            fontFamily: "monospace",
-          }}
-          defaultValue={state.autoBackupInterval}
-          onFocus={handleAutoBackupIntervalFocus}
-          onChange={handleAutoBackupIntervalChanged}
-        />
+        <Button variant="outlined" color="neutral" onClick={handleSaveInstanceUrl}>
+          {t("common.save")}
+        </Button>
+      </div>
+      <Input
+        className="w-full"
+        sx={{
+          fontFamily: "monospace",
+          fontSize: "14px",
+        }}
+        placeholder={"Should be started with http:// or https://"}
+        value={instanceUrl}
+        onChange={(event) => handleInstanceUrlChanged(event.target.value)}
+      />
+      <div className="w-full">
+        <Link
+          className="text-gray-500 text-sm inline-flex flex-row justify-start items-center mt-2 hover:underline hover:text-blue-600"
+          to="https://usememos.com/docs/advanced-settings/seo"
+          target="_blank"
+        >
+          {t("common.learn-more")}
+          <Icon.ExternalLink className="inline w-4 h-auto ml-1" />
+        </Link>
       </div>
       <Divider className="!mt-3 !my-4" />
-      <div className="form-label">
+      <div className="w-full flex flex-row justify-between items-center">
         <div className="flex flex-row items-center">
           <div className="w-auto flex items-center">
             <span className="text-sm mr-1">{t("setting.system-section.telegram-bot-token")}</span>
-            <LearnMore
-              url="https://usememos.com/docs/integration/telegram-bot"
-              title={t("setting.system-section.telegram-bot-token-description")}
-            />
           </div>
         </div>
-        <Button onClick={handleSaveTelegramBotToken}>{t("common.save")}</Button>
+        <Button variant="outlined" color="neutral" onClick={handleSaveTelegramBotToken}>
+          {t("common.save")}
+        </Button>
       </div>
       <Input
         className="w-full"
@@ -337,10 +348,22 @@ const SystemSection = () => {
         value={telegramBotToken}
         onChange={(event) => handleTelegramBotTokenChanged(event.target.value)}
       />
+      <div className="w-full">
+        <Link
+          className="text-gray-500 text-sm inline-flex flex-row justify-start items-center mt-2 hover:underline hover:text-blue-600"
+          to="https://usememos.com/docs/integration/telegram-bot"
+          target="_blank"
+        >
+          {t("common.learn-more")}
+          <Icon.ExternalLink className="inline w-4 h-auto ml-1" />
+        </Link>
+      </div>
       <Divider className="!mt-3 !my-4" />
-      <div className="form-label">
+      <div className="w-full flex flex-row justify-between items-center">
         <span className="normal-text">{t("setting.system-section.additional-style")}</span>
-        <Button onClick={handleSaveAdditionalStyle}>{t("common.save")}</Button>
+        <Button variant="outlined" color="neutral" onClick={handleSaveAdditionalStyle}>
+          {t("common.save")}
+        </Button>
       </div>
       <Textarea
         className="w-full"
@@ -354,9 +377,11 @@ const SystemSection = () => {
         value={state.additionalStyle}
         onChange={(event) => handleAdditionalStyleChanged(event.target.value)}
       />
-      <div className="form-label mt-2">
+      <div className="w-full flex flex-row justify-between items-center mt-2">
         <span className="normal-text">{t("setting.system-section.additional-script")}</span>
-        <Button onClick={handleSaveAdditionalScript}>{t("common.save")}</Button>
+        <Button variant="outlined" color="neutral" onClick={handleSaveAdditionalScript}>
+          {t("common.save")}
+        </Button>
       </div>
       <Textarea
         className="w-full"

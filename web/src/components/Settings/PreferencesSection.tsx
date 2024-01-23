@@ -1,44 +1,63 @@
-import { Button, Divider, Input, Option, Select, Switch } from "@mui/joy";
-import React, { useState } from "react";
+import { Button, Divider, Input, Option, Select } from "@mui/joy";
+import { useState } from "react";
 import { toast } from "react-hot-toast";
-import { VISIBILITY_SELECTOR_ITEMS } from "@/helpers/consts";
-import { useGlobalStore, useUserStore } from "@/store/module";
+import { Link } from "react-router-dom";
+import { useGlobalStore } from "@/store/module";
+import { useUserStore } from "@/store/v1";
+import { Visibility } from "@/types/proto/api/v2/memo_service";
+import { UserSetting } from "@/types/proto/api/v2/user_service";
 import { useTranslate } from "@/utils/i18n";
+import { convertVisibilityFromString, convertVisibilityToString } from "@/utils/memo";
 import AppearanceSelect from "../AppearanceSelect";
-import LearnMore from "../LearnMore";
+import Icon from "../Icon";
 import LocaleSelect from "../LocaleSelect";
 import VisibilityIcon from "../VisibilityIcon";
-import "@/less/settings/preferences-section.less";
+import WebhookSection from "./WebhookSection";
 
 const PreferencesSection = () => {
   const t = useTranslate();
   const globalStore = useGlobalStore();
   const userStore = useUserStore();
-  const { appearance, locale } = globalStore.state;
-  const { setting, localSetting } = userStore.state.user as User;
+  const setting = userStore.userSetting as UserSetting;
   const [telegramUserId, setTelegramUserId] = useState<string>(setting.telegramUserId);
 
   const handleLocaleSelectChange = async (locale: Locale) => {
-    await userStore.upsertUserSetting("locale", locale);
+    await userStore.updateUserSetting(
+      {
+        locale,
+      },
+      ["locale"]
+    );
     globalStore.setLocale(locale);
   };
 
   const handleAppearanceSelectChange = async (appearance: Appearance) => {
-    await userStore.upsertUserSetting("appearance", appearance);
+    await userStore.updateUserSetting(
+      {
+        appearance,
+      },
+      ["appearance"]
+    );
     globalStore.setAppearance(appearance);
   };
 
   const handleDefaultMemoVisibilityChanged = async (value: string) => {
-    await userStore.upsertUserSetting("memo-visibility", value);
-  };
-
-  const handleDoubleClickEnabledChanged = (event: React.ChangeEvent<HTMLInputElement>) => {
-    userStore.upsertLocalSetting({ ...localSetting, enableDoubleClickEditing: event.target.checked });
+    await userStore.updateUserSetting(
+      {
+        memoVisibility: value,
+      },
+      ["memo_visibility"]
+    );
   };
 
   const handleSaveTelegramUserId = async () => {
     try {
-      await userStore.upsertUserSetting("telegram-user-id", telegramUserId);
+      await userStore.updateUserSetting(
+        {
+          telegramUserId: telegramUserId,
+        },
+        ["telegram_user_id"]
+      );
       toast.success(t("message.update-succeed"));
     } catch (error: any) {
       console.error(error);
@@ -51,61 +70,75 @@ const PreferencesSection = () => {
   };
 
   return (
-    <div className="section-container preferences-section-container">
-      <p className="title-text">{t("common.basic")}</p>
-      <div className="form-label selector">
-        <span className="text-sm">{t("common.language")}</span>
-        <LocaleSelect value={locale} onChange={handleLocaleSelectChange} />
+    <div className="w-full flex flex-col gap-2 pt-2 pb-4">
+      <p className="font-medium text-gray-700 dark:text-gray-500">{t("common.basic")}</p>
+      <div className="w-full flex flex-row justify-between items-center">
+        <span>{t("common.language")}</span>
+        <LocaleSelect value={setting.locale} onChange={handleLocaleSelectChange} />
       </div>
-      <div className="form-label selector">
-        <span className="text-sm">{t("setting.preference-section.theme")}</span>
-        <AppearanceSelect value={appearance} onChange={handleAppearanceSelectChange} />
+      <div className="w-full flex flex-row justify-between items-center">
+        <span>{t("setting.preference-section.theme")}</span>
+        <AppearanceSelect value={setting.appearance as Appearance} onChange={handleAppearanceSelectChange} />
       </div>
-      <p className="title-text">{t("setting.preference")}</p>
-      <div className="form-label selector">
-        <span className="text-sm break-keep text-ellipsis overflow-hidden">{t("setting.preference-section.default-memo-visibility")}</span>
+      <p className="font-medium text-gray-700 dark:text-gray-500">{t("setting.preference")}</p>
+      <div className="w-full flex flex-row justify-between items-center">
+        <span className="truncate">{t("setting.preference-section.default-memo-visibility")}</span>
         <Select
           className="!min-w-fit"
           value={setting.memoVisibility}
-          startDecorator={<VisibilityIcon visibility={setting.memoVisibility} />}
+          startDecorator={<VisibilityIcon visibility={convertVisibilityFromString(setting.memoVisibility)} />}
           onChange={(_, visibility) => {
             if (visibility) {
               handleDefaultMemoVisibilityChanged(visibility);
             }
           }}
         >
-          {VISIBILITY_SELECTOR_ITEMS.map((item) => (
-            <Option key={item} value={item} className="whitespace-nowrap">
-              {t(`memo.visibility.${item.toLowerCase() as Lowercase<typeof item>}`)}
-            </Option>
-          ))}
+          {[Visibility.PRIVATE, Visibility.PROTECTED, Visibility.PUBLIC]
+            .map((v) => convertVisibilityToString(v))
+            .map((item) => (
+              <Option key={item} value={item} className="whitespace-nowrap">
+                {t(`memo.visibility.${item.toLowerCase() as Lowercase<typeof item>}`)}
+              </Option>
+            ))}
         </Select>
       </div>
 
-      <label className="form-label selector">
-        <span className="text-sm break-keep">{t("setting.preference-section.enable-double-click")}</span>
-        <Switch className="ml-2" checked={localSetting.enableDoubleClickEditing} onChange={handleDoubleClickEnabledChanged} />
-      </label>
-
       <Divider className="!mt-3 !my-4" />
 
-      <div className="mb-2 w-full flex flex-row justify-between items-center">
-        <div className="w-auto flex items-center">
-          <span className="text-sm mr-1">{t("setting.preference-section.telegram-user-id")}</span>
-          <LearnMore url="https://usememos.com/docs/integration/telegram-bot" />
+      <div className="w-full flex flex-col justify-start items-start">
+        <div className="mb-2 w-full flex flex-row justify-between items-center">
+          <div className="w-auto flex items-center">
+            <span className="mr-1">{t("setting.preference-section.telegram-user-id")}</span>
+          </div>
+          <Button variant="outlined" color="neutral" onClick={handleSaveTelegramUserId}>
+            {t("common.save")}
+          </Button>
         </div>
-        <Button onClick={handleSaveTelegramUserId}>{t("common.save")}</Button>
+        <Input
+          className="w-full"
+          sx={{
+            fontFamily: "monospace",
+            fontSize: "14px",
+          }}
+          value={telegramUserId}
+          onChange={(event) => handleTelegramUserIdChanged(event.target.value)}
+          placeholder={t("setting.preference-section.telegram-user-id-placeholder")}
+        />
+        <div className="w-full">
+          <Link
+            className="text-gray-500 text-sm inline-flex flex-row justify-start items-center mt-2 hover:underline hover:text-blue-600"
+            to="https://usememos.com/docs/integration/telegram-bot"
+            target="_blank"
+          >
+            {t("common.learn-more")}
+            <Icon.ExternalLink className="inline w-4 h-auto ml-1" />
+          </Link>
+        </div>
       </div>
-      <Input
-        className="w-full"
-        sx={{
-          fontFamily: "monospace",
-          fontSize: "14px",
-        }}
-        value={telegramUserId}
-        onChange={(event) => handleTelegramUserIdChanged(event.target.value)}
-        placeholder={t("setting.preference-section.telegram-user-id-placeholder")}
-      />
+
+      <Divider className="!my-4" />
+
+      <WebhookSection />
     </div>
   );
 };

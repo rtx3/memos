@@ -27,10 +27,6 @@ func (d *DB) CreateIdentityProvider(ctx context.Context, create *store.IdentityP
 	fields := []string{"`name`", "`type`", "`identifier_filter`", "`config`"}
 	args := []any{create.Name, create.Type, create.IdentifierFilter, string(configBytes)}
 
-	if create.ID != 0 {
-		fields, placeholders, args = append(fields, "`id`"), append(placeholders, "?"), append(args, create.ID)
-	}
-
 	stmt := "INSERT INTO `idp` (" + strings.Join(fields, ", ") + ") VALUES (" + strings.Join(placeholders, ", ") + ") RETURNING `id`"
 	if err := d.db.QueryRowContext(ctx, stmt, args...).Scan(&create.ID); err != nil {
 		return nil, err
@@ -95,19 +91,6 @@ func (d *DB) ListIdentityProviders(ctx context.Context, find *store.FindIdentity
 	}
 
 	return identityProviders, nil
-}
-
-func (d *DB) GetIdentityProvider(ctx context.Context, find *store.FindIdentityProvider) (*store.IdentityProvider, error) {
-	list, err := d.ListIdentityProviders(ctx, find)
-	if err != nil {
-		return nil, err
-	}
-	if len(list) == 0 {
-		return nil, nil
-	}
-
-	identityProvider := list[0]
-	return identityProvider, nil
 }
 
 func (d *DB) UpdateIdentityProvider(ctx context.Context, update *store.UpdateIdentityProvider) (*store.IdentityProvider, error) {

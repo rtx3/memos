@@ -1,6 +1,8 @@
+import { Button, IconButton, Input } from "@mui/joy";
 import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
-import { useUserV1Store, UserNamePrefix } from "@/store/v1";
+import { useUserStore } from "@/store/v1";
+import { User } from "@/types/proto/api/v2/user_service";
 import { useTranslate } from "@/utils/i18n";
 import { generateDialog } from "./Dialog";
 import Icon from "./Icon";
@@ -12,7 +14,7 @@ interface Props extends DialogProps {
 const ChangeMemberPasswordDialog: React.FC<Props> = (props: Props) => {
   const { user, destroy } = props;
   const t = useTranslate();
-  const userStore = useUserV1Store();
+  const userStore = useUserStore();
   const [newPassword, setNewPassword] = useState("");
   const [newPasswordAgain, setNewPasswordAgain] = useState("");
 
@@ -49,7 +51,7 @@ const ChangeMemberPasswordDialog: React.FC<Props> = (props: Props) => {
     try {
       await userStore.updateUser(
         {
-          name: `${UserNamePrefix}${user.username}`,
+          name: user.name,
           password: newPassword,
         },
         ["password"]
@@ -66,36 +68,36 @@ const ChangeMemberPasswordDialog: React.FC<Props> = (props: Props) => {
     <>
       <div className="dialog-header-container !w-64">
         <p className="title-text">
-          {t("setting.account-section.change-password")} ({user.username})
+          {t("setting.account-section.change-password")} ({user.nickname})
         </p>
-        <button className="btn close-btn" onClick={handleCloseBtnClick}>
-          <Icon.X />
-        </button>
+        <IconButton size="sm" onClick={handleCloseBtnClick}>
+          <Icon.X className="w-5 h-auto" />
+        </IconButton>
       </div>
       <div className="dialog-content-container">
         <p className="text-sm mb-1">{t("auth.new-password")}</p>
-        <input
+        <Input
+          className="w-full"
           type="password"
-          className="input-text"
           placeholder={t("auth.new-password")}
           value={newPassword}
           onChange={handleNewPasswordChanged}
         />
         <p className="text-sm mb-1 mt-2">{t("auth.repeat-new-password")}</p>
-        <input
+        <Input
+          className="w-full"
           type="password"
-          className="input-text"
           placeholder={t("auth.repeat-new-password")}
           value={newPasswordAgain}
           onChange={handleNewPasswordAgainChanged}
         />
-        <div className="mt-4 w-full flex flex-row justify-end items-center space-x-2">
-          <span className="btn-text" onClick={handleCloseBtnClick}>
+        <div className="flex flex-row justify-end items-center mt-4 w-full gap-x-2">
+          <Button color="neutral" variant="plain" onClick={handleCloseBtnClick}>
             {t("common.cancel")}
-          </span>
-          <span className="btn-primary" onClick={handleSaveBtnClick}>
+          </Button>
+          <Button color="primary" onClick={handleSaveBtnClick}>
             {t("common.save")}
-          </span>
+          </Button>
         </div>
       </div>
     </>

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/lithammer/shortuuid/v4"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
@@ -26,7 +27,8 @@ import (
 )
 
 type Resource struct {
-	ID int32 `json:"id"`
+	ID   int32  `json:"id"`
+	Name string `json:"name"`
 
 	// Standard fields
 	CreatorID int32 `json:"creatorId"`
@@ -139,6 +141,7 @@ func (s *APIV1Service) CreateResource(c echo.Context) error {
 	}
 
 	create := &store.Resource{
+		ResourceName: shortuuid.New(),
 		CreatorID:    userID,
 		Filename:     request.Filename,
 		ExternalLink: request.ExternalLink,
@@ -215,10 +218,11 @@ func (s *APIV1Service) UploadResource(c echo.Context) error {
 	defer sourceFile.Close()
 
 	create := &store.Resource{
-		CreatorID: userID,
-		Filename:  file.Filename,
-		Type:      file.Header.Get("Content-Type"),
-		Size:      file.Size,
+		ResourceName: shortuuid.New(),
+		CreatorID:    userID,
+		Filename:     file.Filename,
+		Type:         file.Header.Get("Content-Type"),
+		Size:         file.Size,
 	}
 	err = SaveResourceBlob(ctx, s.Store, create, sourceFile)
 	if err != nil {
@@ -354,6 +358,8 @@ func replacePathTemplate(path, filename string) string {
 			return fmt.Sprintf("%02d", t.Minute())
 		case "{second}":
 			return fmt.Sprintf("%02d", t.Second())
+		case "{uuid}":
+			return util.GenUUID()
 		}
 		return s
 	})
@@ -363,6 +369,7 @@ func replacePathTemplate(path, filename string) string {
 func convertResourceFromStore(resource *store.Resource) *Resource {
 	return &Resource{
 		ID:           resource.ID,
+		Name:         resource.ResourceName,
 		CreatorID:    resource.CreatorID,
 		CreatedTs:    resource.CreatedTs,
 		UpdatedTs:    resource.UpdatedTs,
@@ -416,17 +423,24 @@ func SaveResourceBlob(ctx context.Context, s *store.Store, create *store.Resourc
 				return errors.Wrap(err, "Failed to unmarshal SystemSettingLocalStoragePathName")
 			}
 		}
-		filePath := filepath.FromSlash(localStoragePath)
-		if !strings.Contains(filePath, "{filename}") {
-			filePath = filepath.Join(filePath, "{filename}")
-		}
-		filePath = filepath.Join(s.Profile.Data, replacePathTemplate(filePath, create.Filename))
 
-		dir := filepath.Dir(filePath)
+		internalPath := localStoragePath
+		if !strings.Contains(internalPath, "{filename}") {
+			internalPath = filepath.Join(internalPath, "{filename}")
+		}
+		internalPath = replacePathTemplate(internalPath, create.Filename)
+		internalPath = filepath.ToSlash(internalPath)
+		create.InternalPath = internalPath
+
+		osPath := filepath.FromSlash(internalPath)
+		if !filepath.IsAbs(osPath) {
+			osPath = filepath.Join(s.Profile.Data, osPath)
+		}
+		dir := filepath.Dir(osPath)
 		if err = os.MkdirAll(dir, os.ModePerm); err != nil {
 			return errors.Wrap(err, "Failed to create directory")
 		}
-		dst, err := os.Create(filePath)
+		dst, err := os.Create(osPath)
 		if err != nil {
 			return errors.Wrap(err, "Failed to create file")
 		}
@@ -436,7 +450,6 @@ func SaveResourceBlob(ctx context.Context, s *store.Store, create *store.Resourc
 			return errors.Wrap(err, "Failed to copy file")
 		}
 
-		create.InternalPath = filePath
 		return nil
 	}
 

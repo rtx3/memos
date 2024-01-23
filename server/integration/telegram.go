@@ -3,15 +3,17 @@ package integration
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strconv"
 	"unicode/utf16"
 
+	"github.com/lithammer/shortuuid/v4"
 	"github.com/pkg/errors"
 
 	apiv1 "github.com/usememos/memos/api/v1"
 	"github.com/usememos/memos/plugin/telegram"
+	storepb "github.com/usememos/memos/proto/gen/store"
 	"github.com/usememos/memos/store"
 )
 
@@ -40,19 +42,14 @@ func (t *TelegramHandler) MessageHandle(ctx context.Context, bot *telegram.Bot, 
 
 	var creatorID int32
 	userSettingList, err := t.store.ListUserSettings(ctx, &store.FindUserSetting{
-		Key: apiv1.UserSettingTelegramUserIDKey.String(),
+		Key: storepb.UserSettingKey_USER_SETTING_TELEGRAM_USER_ID,
 	})
 	if err != nil {
 		return errors.Wrap(err, "Failed to find userSettingList")
 	}
 	for _, userSetting := range userSettingList {
-		var value string
-		if err := json.Unmarshal([]byte(userSetting.Value), &value); err != nil {
-			continue
-		}
-
-		if value == strconv.FormatInt(message.From.ID, 10) {
-			creatorID = userSetting.UserID
+		if userSetting.GetTelegramUserId() == strconv.FormatInt(message.From.ID, 10) {
+			creatorID = userSetting.UserId
 		}
 	}
 
@@ -62,8 +59,9 @@ func (t *TelegramHandler) MessageHandle(ctx context.Context, bot *telegram.Bot, 
 	}
 
 	create := &store.Memo{
-		CreatorID:  creatorID,
-		Visibility: store.Private,
+		ResourceName: shortuuid.New(),
+		CreatorID:    creatorID,
+		Visibility:   store.Private,
 	}
 
 	if message.Text != nil {
@@ -88,11 +86,12 @@ func (t *TelegramHandler) MessageHandle(ctx context.Context, bot *telegram.Bot, 
 	for _, attachment := range attachments {
 		// Fill the common field of create
 		create := store.Resource{
-			CreatorID: creatorID,
-			Filename:  attachment.FileName,
-			Type:      attachment.GetMimeType(),
-			Size:      attachment.FileSize,
-			MemoID:    &memoMessage.ID,
+			ResourceName: shortuuid.New(),
+			CreatorID:    creatorID,
+			Filename:     filepath.Base(attachment.FileName),
+			Type:         attachment.GetMimeType(),
+			Size:         attachment.FileSize,
+			MemoID:       &memoMessage.ID,
 		}
 
 		err := apiv1.SaveResourceBlob(ctx, t.store, &create, bytes.NewReader(attachment.Data))

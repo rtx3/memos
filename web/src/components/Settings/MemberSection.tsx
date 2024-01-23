@@ -1,8 +1,11 @@
 import { Button, Dropdown, Input, Menu, MenuButton } from "@mui/joy";
 import React, { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
-import * as api from "@/helpers/api";
-import { useUserStore } from "@/store/module";
+import { userServiceClient } from "@/grpcweb";
+import useCurrentUser from "@/hooks/useCurrentUser";
+import { UserNamePrefix, useUserStore } from "@/store/v1";
+import { RowStatus } from "@/types/proto/api/v2/common";
+import { User, User_Role } from "@/types/proto/api/v2/user_service";
 import { useTranslate } from "@/utils/i18n";
 import showChangeMemberPasswordDialog from "../ChangeMemberPasswordDialog";
 import { showCommonDialog } from "../Dialog/CommonDialog";
@@ -15,8 +18,8 @@ interface State {
 
 const MemberSection = () => {
   const t = useTranslate();
+  const currentUser = useCurrentUser();
   const userStore = useUserStore();
-  const currentUser = userStore.state.user;
   const [state, setState] = useState<State>({
     createUserUsername: "",
     createUserPassword: "",
@@ -28,8 +31,8 @@ const MemberSection = () => {
   }, []);
 
   const fetchUserList = async () => {
-    const { data } = await api.getUserList();
-    setUserList(data.sort((a, b) => a.id - b.id));
+    const users = await userStore.fetchUsers();
+    setUserList(users);
   };
 
   const handleUsernameInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -52,16 +55,16 @@ const MemberSection = () => {
       return;
     }
 
-    const userCreate: UserCreate = {
-      username: state.createUserUsername,
-      password: state.createUserPassword,
-      role: "USER",
-    };
-
     try {
-      await api.createUser(userCreate);
+      await userServiceClient.createUser({
+        user: {
+          name: `${UserNamePrefix}${state.createUserUsername}`,
+          password: state.createUserPassword,
+          role: User_Role.USER,
+        },
+      });
     } catch (error: any) {
-      toast.error(error.response.data.message);
+      toast.error(error.details);
     }
     await fetchUserList();
     setState({
@@ -77,13 +80,16 @@ const MemberSection = () => {
   const handleArchiveUserClick = (user: User) => {
     showCommonDialog({
       title: t("setting.member-section.archive-member"),
-      content: t("setting.member-section.archive-warning", { username: user.username }),
+      content: t("setting.member-section.archive-warning", { username: user.nickname }),
       style: "danger",
       dialogName: "archive-user-dialog",
       onConfirm: async () => {
-        await userStore.patchUser({
-          id: user.id,
-          rowStatus: "ARCHIVED",
+        await userServiceClient.updateUser({
+          user: {
+            name: user.name,
+            rowStatus: RowStatus.ARCHIVED,
+          },
+          updateMask: ["row_status"],
         });
         fetchUserList();
       },
@@ -91,9 +97,12 @@ const MemberSection = () => {
   };
 
   const handleRestoreUserClick = async (user: User) => {
-    await userStore.patchUser({
-      id: user.id,
-      rowStatus: "NORMAL",
+    await userServiceClient.updateUser({
+      user: {
+        name: user.name,
+        rowStatus: RowStatus.ACTIVE,
+      },
+      updateMask: ["row_status"],
     });
     fetchUserList();
   };
@@ -101,21 +110,19 @@ const MemberSection = () => {
   const handleDeleteUserClick = (user: User) => {
     showCommonDialog({
       title: t("setting.member-section.delete-member"),
-      content: t("setting.member-section.delete-warning", { username: user.username }),
+      content: t("setting.member-section.delete-warning", { username: user.nickname }),
       style: "danger",
       dialogName: "delete-user-dialog",
       onConfirm: async () => {
-        await userStore.deleteUser({
-          id: user.id,
-        });
+        await userStore.deleteUser(user.name);
         fetchUserList();
       },
     });
   };
 
   return (
-    <div className="section-container member-section-container">
-      <p className="title-text">{t("setting.member-section.create-a-member")}</p>
+    <div className="w-full flex flex-col gap-2 pt-2 pb-4">
+      <p className="font-medium text-gray-700 dark:text-gray-500">{t("setting.member-section.create-a-member")}</p>
       <div className="w-full flex flex-col justify-start items-start gap-2">
         <div className="flex flex-col justify-start items-start gap-1">
           <span className="text-sm">{t("common.username")}</span>
@@ -133,10 +140,10 @@ const MemberSection = () => {
         <div className="title-text">{t("setting.member-list")}</div>
       </div>
       <div className="w-full overflow-x-auto">
-        <div className="inline-block min-w-full align-middle">
-          <table className="min-w-full divide-y divide-gray-300 dark:divide-gray-400">
+        <div className="inline-block min-w-full align-middle border rounded-lg dark:border-zinc-600">
+          <table className="min-w-full divide-y divide-gray-300 dark:divide-zinc-600">
             <thead>
-              <tr className="text-sm font-semibold text-left text-gray-900 dark:text-gray-300">
+              <tr className="text-sm font-semibold text-left text-gray-900 dark:text-gray-400">
                 <th scope="col" className="py-2 pl-4 pr-3">
                   ID
                 </th>
@@ -152,16 +159,16 @@ const MemberSection = () => {
                 <th scope="col" className="relative py-2 pl-3 pr-4"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-500">
+            <tbody className="divide-y divide-gray-200 dark:divide-zinc-600">
               {userList.map((user) => (
                 <tr key={user.id}>
-                  <td className="whitespace-nowrap py-2 pl-4 pr-3 text-sm text-gray-900 dark:text-gray-300">{user.id}</td>
-                  <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-500 dark:text-gray-300">
+                  <td className="whitespace-nowrap py-2 pl-4 pr-3 text-sm text-gray-900 dark:text-gray-400">{user.id}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
                     {user.username}
-                    <span className="ml-1 italic">{user.rowStatus === "ARCHIVED" && "(Archived)"}</span>
+                    <span className="ml-1 italic">{user.rowStatus === RowStatus.ARCHIVED && "(Archived)"}</span>
                   </td>
-                  <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-500 dark:text-gray-300">{user.nickname}</td>
-                  <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-500 dark:text-gray-300">{user.email}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-500 dark:text-gray-400">{user.nickname}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-500 dark:text-gray-400">{user.email}</td>
                   <td className="relative whitespace-nowrap py-2 pl-3 pr-4 text-right text-sm font-medium flex justify-end">
                     {currentUser?.id === user.id ? (
                       <span>{t("common.yourself")}</span>
@@ -177,7 +184,7 @@ const MemberSection = () => {
                           >
                             {t("setting.account-section.change-password")}
                           </button>
-                          {user.rowStatus === "NORMAL" ? (
+                          {user.rowStatus === RowStatus.ACTIVE ? (
                             <button
                               className="w-full text-left text-sm leading-6 py-1 px-3 cursor-pointer rounded hover:bg-gray-100 dark:hover:bg-zinc-600"
                               onClick={() => handleArchiveUserClick(user)}

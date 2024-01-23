@@ -25,8 +25,8 @@ const globalSlice = createSlice({
       additionalScript: "",
       memoDisplayWithUpdatedTs: false,
       customizedProfile: {
-        name: "memos",
-        logoUrl: "/logo.png",
+        name: "Memos",
+        logoUrl: "/logo.webp",
         description: "",
         locale: "en",
         appearance: "system",

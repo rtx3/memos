@@ -41,13 +41,12 @@ type User struct {
 	UpdatedTs int64     `json:"updatedTs"`
 
 	// Domain specific fields
-	Username        string         `json:"username"`
-	Role            Role           `json:"role"`
-	Email           string         `json:"email"`
-	Nickname        string         `json:"nickname"`
-	PasswordHash    string         `json:"-"`
-	AvatarURL       string         `json:"avatarUrl"`
-	UserSettingList []*UserSetting `json:"userSettingList"`
+	Username     string `json:"username"`
+	Role         Role   `json:"role"`
+	Email        string `json:"email"`
+	Nickname     string `json:"nickname"`
+	PasswordHash string `json:"-"`
+	AvatarURL    string `json:"avatarUrl"`
 }
 
 type CreateUserRequest struct {
@@ -159,7 +158,7 @@ func (s *APIV1Service) CreateUser(c echo.Context) error {
 	if err := userCreate.Validate(); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid user create format").SetInternal(err)
 	}
-	if !usernameMatcher.MatchString(strings.ToLower(userCreate.Username)) {
+	if !util.ResourceNameMatcher.MatchString(strings.ToLower(userCreate.Username)) {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid username %s", userCreate.Username)).SetInternal(err)
 	}
 	// Disallow host user to be created.
@@ -212,18 +211,7 @@ func (s *APIV1Service) GetCurrentUser(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusUnauthorized, "Missing auth session")
 	}
 
-	list, err := s.Store.ListUserSettings(ctx, &store.FindUserSetting{
-		UserID: &userID,
-	})
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to find userSettingList").SetInternal(err)
-	}
-	userSettingList := []*UserSetting{}
-	for _, userSetting := range list {
-		userSettingList = append(userSettingList, convertUserSettingFromStore(userSetting))
-	}
 	userMessage := convertUserFromStore(user)
-	userMessage.UserSettingList = userSettingList
 	return c.JSON(http.StatusOK, userMessage)
 }
 
@@ -281,8 +269,12 @@ func (s *APIV1Service) GetUserByID(c echo.Context) error {
 	}
 
 	userMessage := convertUserFromStore(user)
-	// data desensitize
-	userMessage.Email = ""
+	userID, ok := c.Get(userIDContextKey).(int32)
+	if !ok || userID != user.ID {
+		// Data desensitize.
+		userMessage.Email = ""
+	}
+
 	return c.JSON(http.StatusOK, userMessage)
 }
 
@@ -320,11 +312,13 @@ func (s *APIV1Service) DeleteUser(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("ID is not a number: %s", c.Param("id"))).SetInternal(err)
 	}
-
-	userDelete := &store.DeleteUser{
-		ID: userID,
+	if currentUserID == userID {
+		return echo.NewHTTPError(http.StatusBadRequest, "Cannot delete current user")
 	}
-	if err := s.Store.DeleteUser(ctx, userDelete); err != nil {
+
+	if err := s.Store.DeleteUser(ctx, &store.DeleteUser{
+		ID: userID,
+	}); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to delete user").SetInternal(err)
 	}
 	return c.JSON(http.StatusOK, true)
@@ -380,9 +374,12 @@ func (s *APIV1Service) UpdateUser(c echo.Context) error {
 	if request.RowStatus != nil {
 		rowStatus := store.RowStatus(request.RowStatus.String())
 		userUpdate.RowStatus = &rowStatus
+		if rowStatus == store.Archived && currentUserID == userID {
+			return echo.NewHTTPError(http.StatusBadRequest, "Cannot archive current user")
+		}
 	}
 	if request.Username != nil {
-		if !usernameMatcher.MatchString(strings.ToLower(*request.Username)) {
+		if !util.ResourceNameMatcher.MatchString(strings.ToLower(*request.Username)) {
 			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid username %s", *request.Username)).SetInternal(err)
 		}
 		userUpdate.Username = request.Username
@@ -411,18 +408,7 @@ func (s *APIV1Service) UpdateUser(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to patch user").SetInternal(err)
 	}
 
-	list, err := s.Store.ListUserSettings(ctx, &store.FindUserSetting{
-		UserID: &userID,
-	})
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to find userSettingList").SetInternal(err)
-	}
-	userSettingList := []*UserSetting{}
-	for _, userSetting := range list {
-		userSettingList = append(userSettingList, convertUserSettingFromStore(userSetting))
-	}
 	userMessage := convertUserFromStore(user)
-	userMessage.UserSettingList = userSettingList
 	return c.JSON(http.StatusOK, userMessage)
 }
 

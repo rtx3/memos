@@ -45,6 +45,7 @@
     "image": "图片",
     "language": "语言",
     "learn-more": "了解更多",
+    "file": "文件",
     "link": "链接",
     "mark": "引用",
     "name": "名称",
@@ -82,9 +83,8 @@
     "yourself": "您自己",
     "inbox": "通知"
   },
-  "daily-review": {
-    "no-memos": "哎呀，空无一物。",
-    "title": "每日回顾"
+  "timeline": {
+    "title": "时间线"
   },
   "days": {
     "fri": "五",
@@ -312,7 +312,7 @@
       "s3-compatible-url": "S3 兼容 URL",
       "secretkey": "Secret key",
       "secretkey-placeholder": "Secret key / Access Key",
-      "storage-services-list": "存储服务列表",
+      "storage-services": "存储服务列表",
       "type-database": "数据库",
       "type-local": "本地文件系统",
       "update-a-service": "更新服务",
@@ -332,8 +332,6 @@
       "additional-style": "自定义样式",
       "additional-style-placeholder": "自定义 CSS 代码",
       "allow-user-signup": "允许用户注册",
-      "auto-backup-interval": "自动备份间隔（单位：秒）",
-      "auto-backup-interval-hint": "设置为 0 禁止自动备份，重启后生效。",
       "customize-server": {
         "appearance": "服务器外观",
         "default": "默认为 memos",

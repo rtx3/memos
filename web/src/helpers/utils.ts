@@ -84,12 +84,11 @@ export const formatBytes = (bytes: number) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
 };
 
-export const clearContentQueryParam = () => {
-  const urlParams = new URLSearchParams(window.location.search);
-  urlParams.delete("content");
-  let url = window.location.pathname;
-  if (urlParams.toString()) {
-    url += `?${urlParams.toString()}`;
+export const isValidUrl = (url: string): boolean => {
+  try {
+    new URL(url);
+    return true;
+  } catch (err) {
+    return false;
   }
-  window.history.replaceState({}, "", url);
 };

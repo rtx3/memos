@@ -25,18 +25,6 @@ func (d *DB) CreateActivity(ctx context.Context, create *store.Activity) (*store
 	placeholder := []string{"?", "?", "?", "?"}
 	args := []any{create.CreatorID, create.Type.String(), create.Level.String(), payloadString}
 
-	if create.ID != 0 {
-		fields = append(fields, "`id`")
-		placeholder = append(placeholder, "?")
-		args = append(args, create.ID)
-	}
-
-	if create.CreatedTs != 0 {
-		fields = append(fields, "`created_ts`")
-		placeholder = append(placeholder, "?")
-		args = append(args, create.CreatedTs)
-	}
-
 	stmt := "INSERT INTO activity (" + strings.Join(fields, ", ") + ") VALUES (" + strings.Join(placeholder, ", ") + ") RETURNING `id`, `created_ts`"
 	if err := d.db.QueryRowContext(ctx, stmt, args...).Scan(
 		&create.ID,
@@ -50,7 +38,6 @@ func (d *DB) CreateActivity(ctx context.Context, create *store.Activity) (*store
 
 func (d *DB) ListActivities(ctx context.Context, find *store.FindActivity) ([]*store.Activity, error) {
 	where, args := []string{"1 = 1"}, []any{}
-
 	if find.ID != nil {
 		where, args = append(where, "`id` = ?"), append(args, *find.ID)
 	}

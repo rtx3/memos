@@ -6,11 +6,11 @@ import MemoResource from "./MemoResource";
 import showPreviewImageDialog from "./PreviewImageDialog";
 import SquareDiv from "./kit/SquareDiv";
 
-const MemoResourceListView = ({ resourceList = [] }: { resourceList: Resource[] }) => {
+const MemoResourceListView = ({ resources = [] }: { resources: Resource[] }) => {
   const mediaResources: Resource[] = [];
   const otherResources: Resource[] = [];
 
-  resourceList.forEach((resource) => {
+  resources.forEach((resource) => {
     const type = getResourceType(resource);
     if (type === "image/*" || type === "video/*") {
       mediaResources.push(resource);
@@ -31,6 +31,7 @@ const MemoResourceListView = ({ resourceList = [] }: { resourceList: Resource[] 
   const MediaCard = ({ resource, thumbnail }: { resource: Resource; thumbnail?: boolean }) => {
     const type = getResourceType(resource);
     const url = getResourceUrl(resource);
+
     if (type === "image/*") {
       return (
         <img
@@ -38,11 +39,10 @@ const MemoResourceListView = ({ resourceList = [] }: { resourceList: Resource[] 
           src={resource.externalLink ? url : `${url}${thumbnail ? "?thumbnail=1" : ""}`}
           onClick={() => handleImageClick(url)}
           decoding="async"
+          loading="lazy"
         />
       );
-    }
-
-    if (type === "video/*") {
+    } else if (type === "video/*") {
       return (
         <video
           className="cursor-pointer w-full h-full object-contain bg-zinc-100 dark:bg-zinc-800"
@@ -52,9 +52,9 @@ const MemoResourceListView = ({ resourceList = [] }: { resourceList: Resource[] 
           controls
         />
       );
+    } else {
+      return <></>;
     }
-
-    return <></>;
   };
 
   const MediaList = ({ resources = [] }: { resources: Resource[] }) => {
@@ -62,7 +62,7 @@ const MemoResourceListView = ({ resourceList = [] }: { resourceList: Resource[] 
 
     if (resources.length === 1) {
       return (
-        <div className="mt-2 max-w-full max-h-72 flex justify-center items-center border dark:border-zinc-800 rounded overflow-hidden hide-scrollbar hover:shadow-md">
+        <div className="mt-2 max-w-full flex justify-center items-center border dark:border-zinc-800 rounded overflow-hidden hide-scrollbar hover:shadow-md">
           <MediaCard resource={mediaResources[0]} />
         </div>
       );

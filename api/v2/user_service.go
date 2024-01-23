@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"regexp"
 	"strings"
 	"time"
 
@@ -18,14 +17,34 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/usememos/memos/api/auth"
+	"github.com/usememos/memos/internal/util"
 	apiv2pb "github.com/usememos/memos/proto/gen/api/v2"
 	storepb "github.com/usememos/memos/proto/gen/store"
 	"github.com/usememos/memos/store"
 )
 
-var (
-	usernameMatcher = regexp.MustCompile("^[a-z0-9]([a-z0-9-]{1,30}[a-z0-9])$")
-)
+func (s *APIV2Service) ListUsers(ctx context.Context, _ *apiv2pb.ListUsersRequest) (*apiv2pb.ListUsersResponse, error) {
+	currentUser, err := getCurrentUser(ctx, s.Store)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get user: %v", err)
+	}
+	if currentUser.Role != store.RoleHost && currentUser.Role != store.RoleAdmin {
+		return nil, status.Errorf(codes.PermissionDenied, "permission denied")
+	}
+
+	users, err := s.Store.ListUsers(ctx, &store.FindUser{})
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to list users: %v", err)
+	}
+
+	response := &apiv2pb.ListUsersResponse{
+		Users: []*apiv2pb.User{},
+	}
+	for _, user := range users {
+		response.Users = append(response.Users, convertUserFromStore(user))
+	}
+	return response, nil
+}
 
 func (s *APIV2Service) GetUser(ctx context.Context, request *apiv2pb.GetUserRequest) (*apiv2pb.GetUserResponse, error) {
 	username, err := ExtractUsernameFromName(request.Name)
@@ -62,7 +81,7 @@ func (s *APIV2Service) CreateUser(ctx context.Context, request *apiv2pb.CreateUs
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "name is required")
 	}
-	if !usernameMatcher.MatchString(strings.ToLower(username)) {
+	if !util.ResourceNameMatcher.MatchString(strings.ToLower(username)) {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid username: %s", username)
 	}
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(request.User.Password), bcrypt.DefaultCost)
@@ -118,10 +137,10 @@ func (s *APIV2Service) UpdateUser(ctx context.Context, request *apiv2pb.UpdateUs
 	}
 	for _, field := range request.UpdateMask.Paths {
 		if field == "username" {
-			if !usernameMatcher.MatchString(strings.ToLower(username)) {
-				return nil, status.Errorf(codes.InvalidArgument, "invalid username: %s", username)
+			if !util.ResourceNameMatcher.MatchString(strings.ToLower(request.User.Username)) {
+				return nil, status.Errorf(codes.InvalidArgument, "invalid username: %s", request.User.Username)
 			}
-			update.Username = &username
+			update.Username = &request.User.Username
 		} else if field == "nickname" {
 			update.Nickname = &request.User.Nickname
 		} else if field == "email" {
@@ -155,6 +174,138 @@ func (s *APIV2Service) UpdateUser(ctx context.Context, request *apiv2pb.UpdateUs
 		User: convertUserFromStore(updatedUser),
 	}
 	return response, nil
+}
+
+func (s *APIV2Service) DeleteUser(ctx context.Context, request *apiv2pb.DeleteUserRequest) (*apiv2pb.DeleteUserResponse, error) {
+	username, err := ExtractUsernameFromName(request.Name)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "name is required")
+	}
+	currentUser, err := getCurrentUser(ctx, s.Store)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get user: %v", err)
+	}
+	if currentUser.Username != username && currentUser.Role != store.RoleAdmin && currentUser.Role != store.RoleHost {
+		return nil, status.Errorf(codes.PermissionDenied, "permission denied")
+	}
+
+	user, err := s.Store.GetUser(ctx, &store.FindUser{Username: &username})
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get user: %v", err)
+	}
+	if user == nil {
+		return nil, status.Errorf(codes.NotFound, "user not found")
+	}
+
+	if err := s.Store.DeleteUser(ctx, &store.DeleteUser{
+		ID: user.ID,
+	}); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to delete user: %v", err)
+	}
+
+	return &apiv2pb.DeleteUserResponse{}, nil
+}
+
+func getDefaultUserSetting() *apiv2pb.UserSetting {
+	return &apiv2pb.UserSetting{
+		Locale:         "en",
+		Appearance:     "system",
+		MemoVisibility: "PRIVATE",
+	}
+}
+
+func (s *APIV2Service) GetUserSetting(ctx context.Context, _ *apiv2pb.GetUserSettingRequest) (*apiv2pb.GetUserSettingResponse, error) {
+	user, err := getCurrentUser(ctx, s.Store)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get current user: %v", err)
+	}
+
+	userSettings, err := s.Store.ListUserSettings(ctx, &store.FindUserSetting{
+		UserID: &user.ID,
+	})
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to list user settings: %v", err)
+	}
+	userSettingMessage := getDefaultUserSetting()
+	for _, setting := range userSettings {
+		if setting.Key == storepb.UserSettingKey_USER_SETTING_LOCALE {
+			userSettingMessage.Locale = setting.GetLocale()
+		} else if setting.Key == storepb.UserSettingKey_USER_SETTING_APPEARANCE {
+			userSettingMessage.Appearance = setting.GetAppearance()
+		} else if setting.Key == storepb.UserSettingKey_USER_SETTING_MEMO_VISIBILITY {
+			userSettingMessage.MemoVisibility = setting.GetMemoVisibility()
+		} else if setting.Key == storepb.UserSettingKey_USER_SETTING_TELEGRAM_USER_ID {
+			userSettingMessage.TelegramUserId = setting.GetTelegramUserId()
+		}
+	}
+	return &apiv2pb.GetUserSettingResponse{
+		Setting: userSettingMessage,
+	}, nil
+}
+
+func (s *APIV2Service) UpdateUserSetting(ctx context.Context, request *apiv2pb.UpdateUserSettingRequest) (*apiv2pb.UpdateUserSettingResponse, error) {
+	user, err := getCurrentUser(ctx, s.Store)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get current user: %v", err)
+	}
+
+	if request.UpdateMask == nil || len(request.UpdateMask.Paths) == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "update mask is empty")
+	}
+
+	for _, field := range request.UpdateMask.Paths {
+		if field == "locale" {
+			if _, err := s.Store.UpsertUserSetting(ctx, &storepb.UserSetting{
+				UserId: user.ID,
+				Key:    storepb.UserSettingKey_USER_SETTING_LOCALE,
+				Value: &storepb.UserSetting_Locale{
+					Locale: request.Setting.Locale,
+				},
+			}); err != nil {
+				return nil, status.Errorf(codes.Internal, "failed to upsert user setting: %v", err)
+			}
+		} else if field == "appearance" {
+			if _, err := s.Store.UpsertUserSetting(ctx, &storepb.UserSetting{
+				UserId: user.ID,
+				Key:    storepb.UserSettingKey_USER_SETTING_APPEARANCE,
+				Value: &storepb.UserSetting_Appearance{
+					Appearance: request.Setting.Appearance,
+				},
+			}); err != nil {
+				return nil, status.Errorf(codes.Internal, "failed to upsert user setting: %v", err)
+			}
+		} else if field == "memo_visibility" {
+			if _, err := s.Store.UpsertUserSetting(ctx, &storepb.UserSetting{
+				UserId: user.ID,
+				Key:    storepb.UserSettingKey_USER_SETTING_MEMO_VISIBILITY,
+				Value: &storepb.UserSetting_MemoVisibility{
+					MemoVisibility: request.Setting.MemoVisibility,
+				},
+			}); err != nil {
+				return nil, status.Errorf(codes.Internal, "failed to upsert user setting: %v", err)
+			}
+		} else if field == "telegram_user_id" {
+			if _, err := s.Store.UpsertUserSetting(ctx, &storepb.UserSetting{
+				UserId: user.ID,
+				Key:    storepb.UserSettingKey_USER_SETTING_TELEGRAM_USER_ID,
+				Value: &storepb.UserSetting_TelegramUserId{
+					TelegramUserId: request.Setting.TelegramUserId,
+				},
+			}); err != nil {
+				return nil, status.Errorf(codes.Internal, "failed to upsert user setting: %v", err)
+			}
+		} else {
+			return nil, status.Errorf(codes.InvalidArgument, "invalid update path: %s", field)
+		}
+	}
+
+	userSettingResponse, err := s.GetUserSetting(ctx, &apiv2pb.GetUserSettingRequest{})
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get user setting: %v", err)
+	}
+	return &apiv2pb.UpdateUserSettingResponse{
+		Setting: userSettingResponse.Setting,
+	}, nil
 }
 
 func (s *APIV2Service) ListUserAccessTokens(ctx context.Context, request *apiv2pb.ListUserAccessTokensRequest) (*apiv2pb.ListUserAccessTokensResponse, error) {
@@ -299,7 +450,7 @@ func (s *APIV2Service) DeleteUserAccessToken(ctx context.Context, request *apiv2
 		}
 		updatedUserAccessTokens = append(updatedUserAccessTokens, userAccessToken)
 	}
-	if _, err := s.Store.UpsertUserSettingV1(ctx, &storepb.UserSetting{
+	if _, err := s.Store.UpsertUserSetting(ctx, &storepb.UserSetting{
 		UserId: user.ID,
 		Key:    storepb.UserSettingKey_USER_SETTING_ACCESS_TOKENS,
 		Value: &storepb.UserSetting_AccessTokens{
@@ -324,7 +475,7 @@ func (s *APIV2Service) UpsertAccessTokenToStore(ctx context.Context, user *store
 		Description: description,
 	}
 	userAccessTokens = append(userAccessTokens, &userAccessToken)
-	if _, err := s.Store.UpsertUserSettingV1(ctx, &storepb.UserSetting{
+	if _, err := s.Store.UpsertUserSetting(ctx, &storepb.UserSetting{
 		UserId: user.ID,
 		Key:    storepb.UserSettingKey_USER_SETTING_ACCESS_TOKENS,
 		Value: &storepb.UserSetting_AccessTokens{
@@ -346,6 +497,7 @@ func convertUserFromStore(user *store.User) *apiv2pb.User {
 		CreateTime: timestamppb.New(time.Unix(user.CreatedTs, 0)),
 		UpdateTime: timestamppb.New(time.Unix(user.UpdatedTs, 0)),
 		Role:       convertUserRoleFromStore(user.Role),
+		Username:   user.Username,
 		Email:      user.Email,
 		Nickname:   user.Nickname,
 		AvatarUrl:  user.AvatarURL,

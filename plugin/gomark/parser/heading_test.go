@@ -5,62 +5,38 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/usememos/memos/plugin/gomark/ast"
 	"github.com/usememos/memos/plugin/gomark/parser/tokenizer"
+	"github.com/usememos/memos/plugin/gomark/restore"
 )
 
 func TestHeadingParser(t *testing.T) {
 	tests := []struct {
 		text    string
-		heading *HeadingParser
+		heading ast.Node
 	}{
 		{
 			text:    "*Hello world",
 			heading: nil,
 		},
 		{
-			text: "## Hello World",
-			heading: &HeadingParser{
+			text: "## Hello World\n123",
+			heading: &ast.Heading{
 				Level: 2,
-				ContentTokens: []*tokenizer.Token{
-					{
-						Type:  tokenizer.Text,
-						Value: "Hello",
-					},
-					{
-						Type:  tokenizer.Space,
-						Value: " ",
-					},
-					{
-						Type:  tokenizer.Text,
-						Value: "World",
+				Children: []ast.Node{
+					&ast.Text{
+						Content: "Hello World",
 					},
 				},
 			},
 		},
 		{
 			text: "# # Hello World",
-			heading: &HeadingParser{
+			heading: &ast.Heading{
 				Level: 1,
-				ContentTokens: []*tokenizer.Token{
-					{
-						Type:  tokenizer.Hash,
-						Value: "#",
-					},
-					{
-						Type:  tokenizer.Space,
-						Value: " ",
-					},
-					{
-						Type:  tokenizer.Text,
-						Value: "Hello",
-					},
-					{
-						Type:  tokenizer.Space,
-						Value: " ",
-					},
-					{
-						Type:  tokenizer.Text,
-						Value: "World",
+				Children: []ast.Node{
+					&ast.Text{
+						Content: "# Hello World",
 					},
 				},
 			},
@@ -72,16 +48,30 @@ func TestHeadingParser(t *testing.T) {
 		{
 			text: `# 123 
 Hello World`,
-			heading: &HeadingParser{
+			heading: &ast.Heading{
 				Level: 1,
-				ContentTokens: []*tokenizer.Token{
-					{
-						Type:  tokenizer.Text,
-						Value: "123",
+				Children: []ast.Node{
+					&ast.Text{
+						Content: "123 ",
 					},
-					{
-						Type:  tokenizer.Space,
-						Value: " ",
+				},
+			},
+		},
+		{
+			text: "### **Hello** World",
+			heading: &ast.Heading{
+				Level: 3,
+				Children: []ast.Node{
+					&ast.Bold{
+						Symbol: "*",
+						Children: []ast.Node{
+							&ast.Text{
+								Content: "Hello",
+							},
+						},
+					},
+					&ast.Text{
+						Content: " World",
 					},
 				},
 			},
@@ -90,7 +80,7 @@ Hello World`,
 
 	for _, test := range tests {
 		tokens := tokenizer.Tokenize(test.text)
-		heading := NewHeadingParser()
-		require.Equal(t, test.heading, heading.Match(tokens))
+		node, _ := NewHeadingParser().Parse(tokens)
+		require.Equal(t, restore.Restore([]ast.Node{test.heading}), restore.Restore([]ast.Node{node}))
 	}
 }

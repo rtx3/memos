@@ -1,23 +1,22 @@
 import { useColorScheme } from "@mui/joy";
-import { Suspense, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Outlet } from "react-router-dom";
 import storage from "./helpers/storage";
 import { getSystemColorScheme } from "./helpers/utils";
 import useNavigateTo from "./hooks/useNavigateTo";
-import Loading from "./pages/Loading";
-import store from "./store";
 import { useGlobalStore } from "./store/module";
-import { useUserV1Store } from "./store/v1";
+import { useUserStore } from "./store/v1";
 
 const App = () => {
   const { i18n } = useTranslation();
   const navigateTo = useNavigateTo();
-  const globalStore = useGlobalStore();
   const { mode, setMode } = useColorScheme();
-  const userV1Store = useUserV1Store();
+  const globalStore = useGlobalStore();
+  const userStore = useUserStore();
   const [loading, setLoading] = useState(true);
   const { appearance, locale, systemStatus } = globalStore.state;
+  const userSetting = userStore.userSetting;
 
   // Redirect to sign up page if no host.
   useEffect(() => {
@@ -28,9 +27,10 @@ const App = () => {
 
   useEffect(() => {
     const initialState = async () => {
-      const { user } = store.getState().user;
-      if (user) {
-        await userV1Store.getOrFetchUserByUsername(user.username);
+      try {
+        await userStore.fetchCurrentUser();
+      } catch (error) {
+        // Do nothing.
       }
       setLoading(false);
     };
@@ -75,37 +75,47 @@ const App = () => {
     }
   }, [systemStatus.additionalScript]);
 
+  // Dynamic update metadata with customized profile.
   useEffect(() => {
-    // dynamic update metadata with customized profile.
     document.title = systemStatus.customizedProfile.name;
     const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
-    link.href = systemStatus.customizedProfile.logoUrl || "/logo.png";
+    link.href = systemStatus.customizedProfile.logoUrl || "/logo.webp";
   }, [systemStatus.customizedProfile]);
 
   useEffect(() => {
-    document.documentElement.setAttribute("lang", locale);
-    i18n.changeLanguage(locale);
-    storage.set({
-      locale: locale,
-    });
-    if (locale === "ar") {
+    if (!userSetting) {
+      return;
+    }
+
+    globalStore.setLocale(userSetting.locale);
+    globalStore.setAppearance(userSetting.appearance as Appearance);
+  }, [userSetting?.locale, userSetting?.appearance]);
+
+  useEffect(() => {
+    const { locale: storageLocale } = storage.get(["locale"]);
+    const currentLocale = storageLocale || locale;
+    i18n.changeLanguage(currentLocale);
+    document.documentElement.setAttribute("lang", currentLocale);
+    if (currentLocale === "ar") {
       document.documentElement.setAttribute("dir", "rtl");
     } else {
       document.documentElement.setAttribute("dir", "ltr");
     }
+    storage.set({
+      locale: currentLocale,
+    });
   }, [locale]);
 
   useEffect(() => {
-    storage.set({
-      appearance: appearance,
-    });
-
-    let currentAppearance = appearance;
-    if (appearance === "system") {
+    const { appearance: storageAppearance } = storage.get(["appearance"]);
+    let currentAppearance = (storageAppearance || appearance) as Appearance;
+    if (currentAppearance === "system") {
       currentAppearance = getSystemColorScheme();
     }
-
     setMode(currentAppearance);
+    storage.set({
+      appearance: currentAppearance,
+    });
   }, [appearance]);
 
   useEffect(() => {
@@ -117,13 +127,7 @@ const App = () => {
     }
   }, [mode]);
 
-  return loading ? (
-    <Loading />
-  ) : (
-    <Suspense fallback={<Loading />}>
-      <Outlet />
-    </Suspense>
-  );
+  return loading ? null : <Outlet />;
 };
 
 export default App;

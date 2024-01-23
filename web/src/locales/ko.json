@@ -311,7 +311,7 @@
       "s3-compatible-url": "S3과 호환되는 서비스 URL",
       "secretkey": "비밀 액세스 키",
       "secretkey-placeholder": "비밀 키 / 비밀 액세스 키",
-      "storage-services-list": "저장소 서비스 목록",
+      "storage-services": "저장소 서비스 목록",
       "type-database": "데이터베이스",
       "type-local": "로컬 파일시스템",
       "update-a-service": "서비스 편집",
@@ -331,8 +331,6 @@
       "additional-style": "추가적인 스타일",
       "additional-style-placeholder": "추가적인 CSS 코드",
       "allow-user-signup": "회원등록 허용",
-      "auto-backup-interval": "자동 백업 주기 (초)",
-      "auto-backup-interval-hint": "0으로 설정하면 자동 백업을 비활성화합니다. 이 설정을 바꾼 뒤에는 재시작이 필요합니다.",
       "customize-server": {
         "appearance": "서버 테마",
         "default": "기본값은 memos",

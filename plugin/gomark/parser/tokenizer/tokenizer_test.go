@@ -15,7 +15,7 @@ func TestTokenize(t *testing.T) {
 			text: "*Hello world!",
 			tokens: []*Token{
 				{
-					Type:  Star,
+					Type:  Asterisk,
 					Value: "*",
 				},
 				{
@@ -41,7 +41,7 @@ func TestTokenize(t *testing.T) {
  world`,
 			tokens: []*Token{
 				{
-					Type:  Hash,
+					Type:  PoundSign,
 					Value: "#",
 				},
 				{
@@ -75,5 +75,68 @@ func TestTokenize(t *testing.T) {
 	for _, test := range tests {
 		result := Tokenize(test.text)
 		require.Equal(t, test.tokens, result)
+	}
+}
+
+func TestSplit(t *testing.T) {
+	tests := []struct {
+		tokens []*Token
+		sep    TokenType
+		result [][]*Token
+	}{
+
+		{
+			tokens: []*Token{
+				{
+					Type:  Asterisk,
+					Value: "*",
+				},
+				{
+					Type:  Text,
+					Value: "Hello",
+				},
+				{
+					Type:  Space,
+					Value: " ",
+				},
+				{
+					Type:  Text,
+					Value: "world",
+				},
+				{
+					Type:  ExclamationMark,
+					Value: "!",
+				},
+			},
+			sep: Asterisk,
+			result: [][]*Token{
+				{},
+				{
+					{
+						Type:  Text,
+						Value: "Hello",
+					},
+					{
+						Type:  Space,
+						Value: " ",
+					},
+					{
+						Type:  Text,
+						Value: "world",
+					},
+					{
+						Type:  ExclamationMark,
+						Value: "!",
+					},
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		result := Split(test.tokens, test.sep)
+		for index, tokens := range result {
+			require.Equal(t, Stringify(test.result[index]), Stringify(tokens))
+		}
 	}
 }

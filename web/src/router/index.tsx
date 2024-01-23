@@ -1,7 +1,9 @@
 import { lazy } from "react";
-import { createBrowserRouter, redirect } from "react-router-dom";
+import { createBrowserRouter } from "react-router-dom";
 import App from "@/App";
-import { initialGlobalState, initialUserState } from "@/store/module";
+import SuspenseWrapper from "@/layouts/SuspenseWrapper";
+import { initialGlobalState } from "@/store/module";
+import AuthStatusProvider from "./AuthStatusProvider";
 
 const Root = lazy(() => import("@/layouts/Root"));
 const SignIn = lazy(() => import("@/pages/SignIn"));
@@ -11,33 +13,20 @@ const Explore = lazy(() => import("@/pages/Explore"));
 const Home = lazy(() => import("@/pages/Home"));
 const UserProfile = lazy(() => import("@/pages/UserProfile"));
 const MemoDetail = lazy(() => import("@/pages/MemoDetail"));
-const EmbedMemo = lazy(() => import("@/pages/EmbedMemo"));
 const Archived = lazy(() => import("@/pages/Archived"));
-const DailyReview = lazy(() => import("@/pages/DailyReview"));
+const Timeline = lazy(() => import("@/pages/Timeline"));
 const Resources = lazy(() => import("@/pages/Resources"));
 const Inboxes = lazy(() => import("@/pages/Inboxes"));
 const Setting = lazy(() => import("@/pages/Setting"));
+const About = lazy(() => import("@/pages/About"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
+const PermissionDenied = lazy(() => import("@/pages/PermissionDenied"));
 
 const initialGlobalStateLoader = async () => {
   try {
     await initialGlobalState();
   } catch (error) {
     // do nothing.
-  }
-  return null;
-};
-
-const initialUserStateLoader = async (redirectWhenNotFound = true) => {
-  let user = undefined;
-  try {
-    user = await initialUserState();
-  } catch (error) {
-    // do nothing.
-  }
-
-  if (!user && redirectWhenNotFound) {
-    return redirect("/explore");
   }
   return null;
 };
@@ -49,16 +38,22 @@ const router = createBrowserRouter([
     loader: () => initialGlobalStateLoader(),
     children: [
       {
-        path: "/auth",
-        element: <SignIn />,
-      },
-      {
-        path: "/auth/signup",
-        element: <SignUp />,
-      },
-      {
-        path: "/auth/callback",
-        element: <AuthCallback />,
+        path: "/auth/",
+        element: <SuspenseWrapper />,
+        children: [
+          {
+            path: "",
+            element: <SignIn />,
+          },
+          {
+            path: "signup",
+            element: <SignUp />,
+          },
+          {
+            path: "callback",
+            element: <AuthCallback />,
+          },
+        ],
       },
       {
         path: "/",
@@ -66,59 +61,81 @@ const router = createBrowserRouter([
         children: [
           {
             path: "",
-            element: <Home />,
-            loader: () => initialUserStateLoader(),
+            element: (
+              <AuthStatusProvider>
+                <Home />
+              </AuthStatusProvider>
+            ),
           },
           {
-            path: "review",
-            element: <DailyReview />,
-            loader: () => initialUserStateLoader(),
+            path: "timeline",
+            element: (
+              <AuthStatusProvider>
+                <Timeline />
+              </AuthStatusProvider>
+            ),
           },
           {
             path: "resources",
-            element: <Resources />,
-            loader: () => initialUserStateLoader(),
+            element: (
+              <AuthStatusProvider>
+                <Resources />
+              </AuthStatusProvider>
+            ),
           },
           {
             path: "inbox",
-            element: <Inboxes />,
-            loader: () => initialUserStateLoader(),
+            element: (
+              <AuthStatusProvider>
+                <Inboxes />
+              </AuthStatusProvider>
+            ),
           },
           {
             path: "archived",
-            element: <Archived />,
-            loader: () => initialUserStateLoader(),
+            element: (
+              <AuthStatusProvider>
+                <Archived />
+              </AuthStatusProvider>
+            ),
           },
           {
             path: "setting",
-            element: <Setting />,
-            loader: () => initialUserStateLoader(),
+            element: (
+              <AuthStatusProvider>
+                <Setting />
+              </AuthStatusProvider>
+            ),
           },
           {
             path: "explore",
             element: <Explore />,
-            loader: () => initialUserStateLoader(false),
+          },
+          {
+            path: "m/:memoName",
+            element: <MemoDetail />,
+          },
+          {
+            path: "u/:username",
+            element: <UserProfile />,
+          },
+          {
+            path: "about",
+            element: <About />,
+          },
+          {
+            path: "403",
+            element: <PermissionDenied />,
+          },
+          {
+            path: "404",
+            element: <NotFound />,
+          },
+          {
+            path: "*",
+            element: <NotFound />,
           },
         ],
-      },
-      {
-        path: "/m/:memoId",
-        element: <MemoDetail />,
-        loader: () => initialUserStateLoader(false),
-      },
-      {
-        path: "/m/:memoId/embed",
-        element: <EmbedMemo />,
-        loader: () => initialUserStateLoader(false),
-      },
-      {
-        path: "/u/:username",
-        element: <UserProfile />,
-        loader: () => initialUserStateLoader(false),
-      },
-      {
-        path: "*",
-        element: <NotFound />,
       },
     ],
   },

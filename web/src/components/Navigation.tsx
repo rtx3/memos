@@ -1,3 +1,4 @@
+import { Tooltip } from "@mui/joy";
 import classNames from "classnames";
 import { useEffect } from "react";
 import { NavLink } from "react-router-dom";
@@ -15,7 +16,13 @@ interface NavLinkItem {
   icon: React.ReactNode;
 }
 
-const Navigation = () => {
+interface Props {
+  collapsed?: boolean;
+  className?: string;
+}
+
+const Navigation = (props: Props) => {
+  const { collapsed, className } = props;
   const t = useTranslate();
   const user = useCurrentUser();
   const inboxStore = useInboxStore();
@@ -41,19 +48,31 @@ const Navigation = () => {
     id: "header-home",
     path: "/",
     title: t("common.home"),
-    icon: <Icon.Home className="mr-3 w-6 h-auto opacity-70" />,
+    icon: <Icon.Home className="w-6 h-auto opacity-70" />,
   };
-  const dailyReviewNavLink: NavLinkItem = {
-    id: "header-daily-review",
-    path: "/review",
-    title: t("daily-review.title"),
-    icon: <Icon.Calendar className="mr-3 w-6 h-auto opacity-70" />,
+  const timelineNavLink: NavLinkItem = {
+    id: "header-timeline",
+    path: "/timeline",
+    title: t("timeline.title"),
+    icon: <Icon.GanttChartSquare className="w-6 h-auto opacity-70" />,
   };
   const resourcesNavLink: NavLinkItem = {
     id: "header-resources",
     path: "/resources",
     title: t("common.resources"),
-    icon: <Icon.Paperclip className="mr-3 w-6 h-auto opacity-70" />,
+    icon: <Icon.Paperclip className="w-6 h-auto opacity-70" />,
+  };
+  const exploreNavLink: NavLinkItem = {
+    id: "header-explore",
+    path: "/explore",
+    title: t("common.explore"),
+    icon: <Icon.Globe2 className="w-6 h-auto opacity-70" />,
+  };
+  const profileNavLink: NavLinkItem = {
+    id: "header-profile",
+    path: user ? `/u/${encodeURIComponent(user.username)}` : "",
+    title: t("common.profile"),
+    icon: <Icon.User2 className="w-6 h-auto opacity-70" />,
   };
   const inboxNavLink: NavLinkItem = {
     id: "header-inbox",
@@ -62,60 +81,72 @@ const Navigation = () => {
     icon: (
       <>
         <div className="relative">
-          <Icon.Bell className="mr-3 w-6 h-auto opacity-70" />
+          <Icon.Bell className="w-6 h-auto opacity-70" />
           {hasUnreadInbox && <div className="absolute top-0 left-5 w-2 h-2 rounded-full bg-blue-500"></div>}
         </div>
       </>
     ),
   };
-  const exploreNavLink: NavLinkItem = {
-    id: "header-explore",
-    path: "/explore",
-    title: t("common.explore"),
-    icon: <Icon.Hash className="mr-3 w-6 h-auto opacity-70" />,
-  };
   const archivedNavLink: NavLinkItem = {
     id: "header-archived",
     path: "/archived",
     title: t("common.archived"),
-    icon: <Icon.Archive className="mr-3 w-6 h-auto opacity-70" />,
+    icon: <Icon.Archive className="w-6 h-auto opacity-70" />,
   };
   const settingNavLink: NavLinkItem = {
     id: "header-setting",
     path: "/setting",
     title: t("common.settings"),
-    icon: <Icon.Settings className="mr-3 w-6 h-auto opacity-70" />,
+    icon: <Icon.Settings className="w-6 h-auto opacity-70" />,
   };
   const signInNavLink: NavLinkItem = {
     id: "header-auth",
     path: "/auth",
     title: t("common.sign-in"),
-    icon: <Icon.LogIn className="mr-3 w-6 h-auto opacity-70" />,
+    icon: <Icon.LogIn className="w-6 h-auto opacity-70" />,
+  };
+  const aboutNavLink: NavLinkItem = {
+    id: "header-about",
+    path: "/about",
+    title: t("common.about"),
+    icon: <Icon.Smile className="w-6 h-auto opacity-70" />,
   };
 
   const navLinks: NavLinkItem[] = user
-    ? [homeNavLink, dailyReviewNavLink, resourcesNavLink, exploreNavLink, inboxNavLink, archivedNavLink, settingNavLink]
-    : [exploreNavLink, signInNavLink];
+    ? [homeNavLink, timelineNavLink, resourcesNavLink, exploreNavLink, profileNavLink, inboxNavLink, archivedNavLink, settingNavLink]
+    : [exploreNavLink, signInNavLink, aboutNavLink];
 
   return (
-    <header className="w-full h-full overflow-auto flex flex-col justify-start items-start py-4 z-30">
-      <UserBanner />
-      <div className="w-full px-2 py-2 flex flex-col justify-start items-start shrink-0 space-y-2">
+    <header
+      className={classNames(
+        "w-full h-full overflow-auto flex flex-col justify-start items-start py-4 md:pt-6 z-30 hide-scrollbar",
+        className
+      )}
+    >
+      <UserBanner collapsed={collapsed} />
+      <div className="w-full px-1 py-2 flex flex-col justify-start items-start shrink-0 space-y-2">
         {navLinks.map((navLink) => (
           <NavLink
+            className={({ isActive }) =>
+              classNames(
+                "px-2 py-2 rounded-2xl border flex flex-row items-center text-lg text-gray-800 dark:text-gray-300 hover:bg-white hover:border-gray-200 dark:hover:border-zinc-700 dark:hover:bg-zinc-800",
+                collapsed ? "" : "w-full px-4",
+                isActive ? "bg-white drop-shadow-sm dark:bg-zinc-800 border-gray-200 dark:border-zinc-700" : "border-transparent"
+              )
+            }
             key={navLink.id}
             to={navLink.path}
             id={navLink.id}
-            className={({ isActive }) =>
-              classNames(
-                "px-4 pr-5 py-2 rounded-2xl border flex flex-row items-center text-lg text-gray-800 dark:text-gray-300 hover:bg-white hover:border-gray-200 dark:hover:border-zinc-600 dark:hover:bg-zinc-700",
-                isActive ? "bg-white drop-shadow-sm dark:bg-zinc-700 border-gray-200 dark:border-zinc-600" : "border-transparent"
-              )
-            }
+            unstable_viewTransition
           >
-            <>
-              {navLink.icon} {navLink.title}
-            </>
+            {props.collapsed ? (
+              <Tooltip title={navLink.title} placement="right" arrow>
+                <div>{navLink.icon}</div>
+              </Tooltip>
+            ) : (
+              navLink.icon
+            )}
+            {!props.collapsed && <span className="ml-3">{navLink.title}</span>}
           </NavLink>
         ))}
       </div>

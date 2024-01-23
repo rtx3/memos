@@ -9,15 +9,12 @@
     - [ActivityVersionUpdatePayload](#memos-store-ActivityVersionUpdatePayload)
   
 - [store/common.proto](#store_common-proto)
+    - [RowStatus](#memos-store-RowStatus)
+  
 - [store/inbox.proto](#store_inbox-proto)
     - [InboxMessage](#memos-store-InboxMessage)
   
     - [InboxMessage.Type](#memos-store-InboxMessage-Type)
-  
-- [store/system_setting.proto](#store_system_setting-proto)
-    - [BackupConfig](#memos-store-BackupConfig)
-  
-    - [SystemSettingKey](#memos-store-SystemSettingKey)
   
 - [store/user_setting.proto](#store_user_setting-proto)
     - [AccessTokensUserSetting](#memos-store-AccessTokensUserSetting)
@@ -25,6 +22,14 @@
     - [UserSetting](#memos-store-UserSetting)
   
     - [UserSettingKey](#memos-store-UserSettingKey)
+  
+- [store/webhook.proto](#store_webhook-proto)
+    - [Webhook](#memos-store-Webhook)
+  
+- [store/workspace_setting.proto](#store_workspace_setting-proto)
+    - [WorkspaceProfileSetting](#memos-store-WorkspaceProfileSetting)
+  
+    - [WorkspaceSettingKey](#memos-store-WorkspaceSettingKey)
   
 - [Scalar Value Types](#scalar-value-types)
 
@@ -101,6 +106,19 @@
 
  
 
+
+<a name="memos-store-RowStatus"></a>
+
+### RowStatus
+
+
+| Name | Number | Description |
+| ---- | ------ | ----------- |
+| ROW_STATUS_UNSPECIFIED | 0 |  |
+| NORMAL | 1 |  |
+| ARCHIVED | 2 |  |
+
+
  
 
  
@@ -144,51 +162,6 @@
 | TYPE_UNSPECIFIED | 0 |  |
 | TYPE_MEMO_COMMENT | 1 |  |
 | TYPE_VERSION_UPDATE | 2 |  |
-
-
- 
-
- 
-
- 
-
-
-
-<a name="store_system_setting-proto"></a>
-<p align="right"><a href="#top">Top</a></p>
-
-## store/system_setting.proto
-
-
-
-<a name="memos-store-BackupConfig"></a>
-
-### BackupConfig
-
-
-
-| Field | Type | Label | Description |
-| ----- | ---- | ----- | ----------- |
-| enabled | [bool](#bool) |  | enabled indicates whether backup is enabled. |
-| cron | [string](#string) |  | cron is the cron expression for backup. See https://godoc.org/github.com/robfig/cron#hdr-CRON_Expression_Format |
-| max_keep | [int32](#int32) |  | max_keep is the maximum number of backups to keep. |
-
-
-
-
-
- 
-
-
-<a name="memos-store-SystemSettingKey"></a>
-
-### SystemSettingKey
-
-
-| Name | Number | Description |
-| ---- | ------ | ----------- |
-| SYSTEM_SETTING_KEY_UNSPECIFIED | 0 |  |
-| BACKUP_CONFIG | 1 | BackupConfig is the key for auto-backup configuration. |
 
 
  
@@ -248,6 +221,10 @@
 | user_id | [int32](#int32) |  |  |
 | key | [UserSettingKey](#memos-store-UserSettingKey) |  |  |
 | access_tokens | [AccessTokensUserSetting](#memos-store-AccessTokensUserSetting) |  |  |
+| locale | [string](#string) |  |  |
+| appearance | [string](#string) |  |  |
+| memo_visibility | [string](#string) |  |  |
+| telegram_user_id | [string](#string) |  |  |
 
 
 
@@ -265,6 +242,91 @@
 | ---- | ------ | ----------- |
 | USER_SETTING_KEY_UNSPECIFIED | 0 |  |
 | USER_SETTING_ACCESS_TOKENS | 1 | Access tokens for the user. |
+| USER_SETTING_LOCALE | 2 | The locale of the user. |
+| USER_SETTING_APPEARANCE | 3 | The appearance of the user. |
+| USER_SETTING_MEMO_VISIBILITY | 4 | The visibility of the memo. |
+| USER_SETTING_TELEGRAM_USER_ID | 5 | The telegram user id of the user. |
+
+
+ 
+
+ 
+
+ 
+
+
+
+<a name="store_webhook-proto"></a>
+<p align="right"><a href="#top">Top</a></p>
+
+## store/webhook.proto
+
+
+
+<a name="memos-store-Webhook"></a>
+
+### Webhook
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| id | [int32](#int32) |  |  |
+| created_ts | [int64](#int64) |  |  |
+| updated_ts | [int64](#int64) |  |  |
+| creator_id | [int32](#int32) |  |  |
+| row_status | [RowStatus](#memos-store-RowStatus) |  |  |
+| name | [string](#string) |  |  |
+| url | [string](#string) |  |  |
+
+
+
+
+
+ 
+
+ 
+
+ 
+
+ 
+
+
+
+<a name="store_workspace_setting-proto"></a>
+<p align="right"><a href="#top">Top</a></p>
+
+## store/workspace_setting.proto
+
+
+
+<a name="memos-store-WorkspaceProfileSetting"></a>
+
+### WorkspaceProfileSetting
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| instance_url | [string](#string) |  |  |
+| disallow_signup | [bool](#bool) |  |  |
+
+
+
+
+
+ 
+
+
+<a name="memos-store-WorkspaceSettingKey"></a>
+
+### WorkspaceSettingKey
+
+
+| Name | Number | Description |
+| ---- | ------ | ----------- |
+| WORKSPACE_SETTING_KEY_UNSPECIFIED | 0 |  |
+| WORKSPACE_SETTING_PROFILE | 1 |  |
 
 
  

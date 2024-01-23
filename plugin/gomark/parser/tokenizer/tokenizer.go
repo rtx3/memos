@@ -3,21 +3,35 @@ package tokenizer
 type TokenType = string
 
 const (
-	Underline          TokenType = "_"
-	Star               TokenType = "*"
-	Hash               TokenType = "#"
+	Underscore         TokenType = "_"
+	Asterisk           TokenType = "*"
+	PoundSign          TokenType = "#"
 	Backtick           TokenType = "`"
 	LeftSquareBracket  TokenType = "["
 	RightSquareBracket TokenType = "]"
 	LeftParenthesis    TokenType = "("
 	RightParenthesis   TokenType = ")"
 	ExclamationMark    TokenType = "!"
+	QuestionMark       TokenType = "?"
+	Tilde              TokenType = "~"
+	Hyphen             TokenType = "-"
+	PlusSign           TokenType = "+"
+	Dot                TokenType = "."
+	LessThan           TokenType = "<"
+	GreaterThan        TokenType = ">"
+	DollarSign         TokenType = "$"
+	EqualSign          TokenType = "="
+	Pipe               TokenType = "|"
+	Colon              TokenType = ":"
+	Caret              TokenType = "^"
+	Backslash          TokenType = "\\"
 	Newline            TokenType = "\n"
 	Space              TokenType = " "
 )
 
 const (
-	Text TokenType = ""
+	Number TokenType = "number"
+	Text   TokenType = ""
 )
 
 type Token struct {
@@ -37,11 +51,11 @@ func Tokenize(text string) []*Token {
 	for _, c := range text {
 		switch c {
 		case '_':
-			tokens = append(tokens, NewToken(Underline, "_"))
+			tokens = append(tokens, NewToken(Underscore, "_"))
 		case '*':
-			tokens = append(tokens, NewToken(Star, "*"))
+			tokens = append(tokens, NewToken(Asterisk, "*"))
 		case '#':
-			tokens = append(tokens, NewToken(Hash, "#"))
+			tokens = append(tokens, NewToken(PoundSign, "#"))
 		case '`':
 			tokens = append(tokens, NewToken(Backtick, "`"))
 		case '[':
@@ -54,21 +68,96 @@ func Tokenize(text string) []*Token {
 			tokens = append(tokens, NewToken(RightParenthesis, ")"))
 		case '!':
 			tokens = append(tokens, NewToken(ExclamationMark, "!"))
+		case '?':
+			tokens = append(tokens, NewToken(QuestionMark, "?"))
+		case '~':
+			tokens = append(tokens, NewToken(Tilde, "~"))
+		case '-':
+			tokens = append(tokens, NewToken(Hyphen, "-"))
+		case '<':
+			tokens = append(tokens, NewToken(LessThan, "<"))
+		case '>':
+			tokens = append(tokens, NewToken(GreaterThan, ">"))
+		case '+':
+			tokens = append(tokens, NewToken(PlusSign, "+"))
+		case '.':
+			tokens = append(tokens, NewToken(Dot, "."))
+		case '$':
+			tokens = append(tokens, NewToken(DollarSign, "$"))
+		case '=':
+			tokens = append(tokens, NewToken(EqualSign, "="))
+		case '|':
+			tokens = append(tokens, NewToken(Pipe, "|"))
+		case ':':
+			tokens = append(tokens, NewToken(Colon, ":"))
+		case '^':
+			tokens = append(tokens, NewToken(Caret, "^"))
+		case '\\':
+			tokens = append(tokens, NewToken(Backslash, `\`))
 		case '\n':
 			tokens = append(tokens, NewToken(Newline, "\n"))
 		case ' ':
 			tokens = append(tokens, NewToken(Space, " "))
 		default:
-			var lastToken *Token
+			var prevToken *Token
 			if len(tokens) > 0 {
-				lastToken = tokens[len(tokens)-1]
+				prevToken = tokens[len(tokens)-1]
 			}
-			if lastToken == nil || lastToken.Type != Text {
-				tokens = append(tokens, NewToken(Text, string(c)))
+
+			isNumber := c >= '0' && c <= '9'
+			if prevToken != nil {
+				if (prevToken.Type == Text && !isNumber) || (prevToken.Type == Number && isNumber) {
+					prevToken.Value += string(c)
+					continue
+				}
+			}
+
+			if isNumber {
+				tokens = append(tokens, NewToken(Number, string(c)))
 			} else {
-				lastToken.Value += string(c)
+				tokens = append(tokens, NewToken(Text, string(c)))
 			}
 		}
 	}
 	return tokens
+}
+
+func (t *Token) String() string {
+	return t.Value
+}
+
+func Stringify(tokens []*Token) string {
+	text := ""
+	for _, token := range tokens {
+		text += token.String()
+	}
+	return text
+}
+
+func Split(tokens []*Token, delimiter TokenType) [][]*Token {
+	if len(tokens) == 0 {
+		return [][]*Token{}
+	}
+
+	result := make([][]*Token, 0)
+	current := make([]*Token, 0)
+	for _, token := range tokens {
+		if token.Type == delimiter {
+			result = append(result, current)
+			current = make([]*Token, 0)
+		} else {
+			current = append(current, token)
+		}
+	}
+	result = append(result, current)
+	return result
+}
+
+func Find(tokens []*Token, delimiter TokenType) (int, bool) {
+	for index, token := range tokens {
+		if token.Type == delimiter {
+			return index, true
+		}
+	}
+	return 0, false
 }
